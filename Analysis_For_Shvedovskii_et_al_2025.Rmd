@@ -1,0 +1,2694 @@
+---
+title: "DELTA memory data analysis"
+author: Evgenii Shvedovskii, research fellow, RTG Neuromodulation | KJPP, University
+  of Oldenburg
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    number_sections: true
+    theme: flatly
+  pdf_document:
+    toc: true
+    toc_depth: '3'
+  word_document:
+    toc: true
+    toc_depth: '3'
+---
+
+This document outlines the dataset preparation and analysis conducted for the study designed to address the following research questions:
+
+RQ1: Do the parameters of verbal episodic memory, working memory, verbal comprehension, processing speed, and overall cognitive functioning differ between the control group and chronic cannabis users (CCU)?
+
+RQ2: Can substance use history parameters — such as age of onset of cannabis use, duration of use, and the frequency and quantity of cannabis consumed during the selected time period — predict cognitive outcomes within the CCU group?
+
+Data for the present analyses were obtained from adolescents who participated in the DELTA study. The DELTA study (Dresdner Multimodale Therapie für Jugendliche mit chronischem Suchtmittelkonsum) is a longitudinal research project designed to evaluate the effectiveness of a group-based multimodal therapy for young individuals with chronic substance use disorders. Data collection was conducted between 2017 and 2023 at the Carl Gustav Carus University Hospital, Dresden, Germany.
+
+# Dataset preparation, selection of primary cannabis users
+
+## Libraries preparation
+
+```{r setup_libraries, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(writexl)
+library(effectsize)
+library(vegan)
+library(reshape2)
+library(rstatix)
+library(Hmisc)
+library(ggpubr)
+library(broom)
+library(corrr)
+library(car)
+library(knitr)
+library(kableExtra)
+library(gt)
+library(sjPlot)
+library(lmtest)
+library(MASS)
+library(sandwich)
+library(scales)
+library(effectsize)
+library(officer)
+library(flextable)
+
+```
+
+## Uploading the initial dataset
+
+```{r setup_dataset, message=FALSE, warning=FALSE}
+
+rm(list = ls())
+
+path =   ## Add path here 
+
+memdat <- read_excel(paste(path, "/DELTA_DataSet_For_Participant_Selection.xlsx", sep="")) 
+
+```
+
+## Dataset structure, changing the types of variables
+
+```{r sample_select_var_types_change}
+memdat <- memdat %>% 
+  mutate(
+    across(
+      c(rep, sex, gr_gen, N_TK, ALC_TK, C_TK, MDMA_TK, AMP_TK, METH_TK, KOK_TK, H_TK, KE_TK, Op_TK, IN_TK,
+        Sozio_fg_7_M, Sozio_fg_13_V, Sozio_fg_21, Sozio_fg_22, Sozio_fg_7, Sozio_fg_8, WAIS_ID, WISC_ID), ~ as.factor(.)
+    ),
+    across(
+      c(N_FUA, N_CD_M, N_APD_M, N_CD_Y, N_APD_Y, ALC_FUA, ALC_CD_M, ALC_APD_M, ALC_CD_Y, ALC_APD_Y, C_FUA, C_CD_M, C_APD_M, C_CD_Y, C_APD_Y, MDMA_FUA, MDMA_CD_M, MDMA_APD_M, MDMA_CD_Y, MDMA_APD_Y, AMP_FUA, AMP_CD_M, AMP_APD_M, AMP_CD_Y, AMP_APD_Y, METH_FUA, METH_CD_M, METH_APD_M, METH_CD_Y, METH_APD_Y, KOK_FUA, KOK_CD_M, KOK_APD_M, KOK_CD_Y, KOK_APD_Y, H_FUA, H_CD_M, H_APD_M, H_CD_Y, H_APD_Y, KE_FUA, KE_CD_M, KE_APD_M, KE_CD_Y, KE_APD_Y, Op_CD_M, Op_APD_M, Op_CD_Y, Op_APD_Y, IN_FUA, IN_CD_M, IN_APD_M, IN_CD_Y, IN_APD_Y, Dg1, Dg2, Dg3, Dg4, Dg5, SDg1_5, I, Dg6, Dg7, Dg5_Dg7, W, W_F, WAIS_Sv, WAIS_LD, WAIS_Ag, WAIS_Vg, WAIS_GEN_IQ, WISC_Sv, WISC_Vr_V, WISC_FS, WISC_Ag, WISC_Vg, WISC_G_IQ),
+      ~ as.numeric(.)
+    ),
+    across(
+      c(DIPS_1_1, DIPS_1_2, DIPS_1_3, DIPS_2, DIPS_3, DIPS_4, DIPS_5,	DIPS_6,	DIPS_7,	DIPS_8,	DIPS_9,	DIPS_9_1,	DIPS_9_2,	DIPS_10,	DIPS_11, DIPS_12,	DIPS_13,	DIPS_14,	DIPS_15,	DIPS_16_1,	DIPS_16_2,	DIPS_16_3,	DIPS_16_4,	DIPS_17_1,	DIPS_17_2,	DIPS_17_3,	DIPS_17_4,	DIPS_17_5,	DIPS_18_1,	DIPS_18_2,	DIPS_18_3,	DIPS_19,	DIPS_20,	DIPS_21, 
+        MK_A11_1,	MK_A11_2,	MK_A11_3,	MK_A11_4,	MK_A12_1,	MK_A12_2,	MK_A12_3,	MK_A12_4,	MK_B11_1,	MK_B11_2,	MK_B11_3,	MK_B11_4,	MK_B12,	MK_C11_1,	MK_C11_2,	MK_C11_3,	MK_C12_1,	MK_C12_2,	MK_C12_3,	MK_C13_1,	MK_C13_2,	MK_C13_4,	MK_C14_1,	MK_C14_2,	MK_C14_3,	MK_C15_1,	MK_C15_2,	MK_C15_3,	MK_D,	MK_E,	MK_F,	MK_G,	MK_H,	MK_I,	MK_J,	MK_K1,	MK_K2,	MK_K3,	MK_K4,	MK_L1, MK_M1,	MK_M2,	MK_M3,	MK_M4,	MK_N1,	MK_N2,	MK_N3,	MK_O,	MK_P,	MK_Q1,	MK_Q2,	MK_Q3,	MK_Q4,	MK_Q5,	MK_Q6,	MK_Q7,	MK_Q8,	MK_Q9,	MK_R,	MK_S,	MK_T,	MK_U,	MK_V,	MK_W,	MK_X,	MK_Y
+),
+      ~ as.numeric(as.character(.))
+    )
+  )
+```
+
+## Filtering DELTA study participants
+
+There are two groups of participants in this data set. The grouping variable is "gr_gen".
+
+a) DELTA study participants polysubstance users (gr_gen = 2; n = 481)
+b) CLinical Control Group (gr_gen = 1; n = 50)
+
+
+### Selecting primary cannabis users from the polysubstance users group:
+
+Participants involved in the DELTA study were predominantly poly-substance users. Therefore, a specific procedure was developed to identify and select primary cannabis users from the overall sample. The source of the data is a specially designed Substance Anamnesis interview (Golub et al., 2021), during which the use of nicotine, alcohol, cannabis, MDMA, amphetamine, methamphetamine, cocaine, hallucinogens, ketamine, opiates, and other substances was assessed by the following questions:
+
+*Age of First Use (AFU)
+*Consumption days (CD_M: in the last month or CD_Y: in an average month within the last year (excluding the last month)
+*Amount of consumption per day (in grams, APD_M: in the last month or APD_Y: in an average month in the last year)
+
+We made the primary cannabis consumers selection, based on the answers of participants about the days of consumption of each substance (CD_M, CD_Y). 
+
+Cannabis CD_M, CD_Y > 4 days/average month in last year, Alcohol CD_M, CD_Y < 12 days/ average month in last year, other substances CD_M, CD_Y < 4 days/average month in last year.
+
+
+### Excluding cannabis use experience participants from control sample:
+
+A second model was made for the exclusion of possible substance use participants in the clinical control group
+
+Cannabis CD_M, CD_Y < 4 days/average month in last year, Alcohol CD_M, CD_Y < 12 days/ average month in last year, other substances CD_M, CD_Y < 4 days/average month in last year.
+
+```{r sample_select_cut_off}
+
+memdat <- memdat %>%
+  mutate(gr_final = case_when(
+    # controls
+    gr_gen == 1 &
+      C_CD_M < 4 & C_CD_Y < 4 & 
+      ALC_CD_M < 12 & ALC_CD_Y < 12 & 
+      AMP_CD_M < 4 & AMP_CD_Y < 4 &  
+      METH_CD_M < 4 & METH_CD_Y < 4 &
+      KOK_CD_M < 4 & KOK_CD_Y < 4 &
+      H_CD_M < 4 & H_CD_Y < 4 &
+      KE_CD_M < 4 & KE_CD_Y < 4 &
+      Op_CD_M < 4 & Op_CD_Y < 4 &
+      IN_CD_M < 4 & IN_CD_Y < 4 ~ 1,
+    
+    # Cannabis users
+    gr_gen == 2 &
+      (C_CD_M > 4 | C_CD_Y > 4) & 
+      ALC_CD_M < 12 & ALC_CD_Y < 12 &  
+      AMP_CD_M < 4 & AMP_CD_Y < 4 &
+      METH_CD_M < 4 & METH_CD_Y < 4 &
+      KOK_CD_M < 4 & KOK_CD_Y < 4 &
+      H_CD_M < 4 & H_CD_Y < 4 &
+      KE_CD_M < 4 & KE_CD_Y < 4 &
+      Op_CD_M < 4 & Op_CD_Y < 4 &
+      IN_CD_M < 4 & IN_CD_Y < 4 ~ 2,
+    
+    TRUE ~ NA_real_
+  )) %>%
+  
+  mutate(gr_final_label = factor(gr_final,
+                                 levels = c(1, 2),
+                                 labels = c("Controls", "Chronic Cannabis Users")))
+
+## Table of final groups
+memdat %>%
+  count(gr_final_label) %>%
+  rename(`Groups` = gr_final_label) %>%
+  kbl(caption = "Distribution of participants: Controls and Primary Cannabis Users") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = TRUE,
+                position = "center")
+
+```
+
+
+### Selecting participants, who completed cognitive assessments
+
+In line with our research questions, we applied selection criteria to identify participants, who completed the following cognitive assessments: Verbaler Lern- und Merkfähigkeitstest (VLMT, Helmstaedter et al., 2001) and the German version of Wechsler Intelligence Scale (adult (WAIS) or child (WISC) version, depending on the participant's age; Petermann and Petermann, 2011).
+
+Due to the small sample sizes and given that the WISC and WAIS tests assess comparable constructs that can be interpreted in a similar manner (Niileksela & Reynolds, 2019), we first pooled four indices that are common to both versions of the Wechsler Intelligence Scales: the Verbal Comprehension Index (VCI or Sv in German), Processing Speed (PS or Vg in German), Working Memory Index (WMI or Ag in German), and General IQ Score (GIQ). As a result, we obtained four variables that combined data across two adolescent age bands.
+
+Afterward, we applied the following rule: we selected participants who had completed the VLMT test indicated by the parameter of total learning performance (SDg1_5), the Wechsler test indicated by the parameter of the General IQ level (W_GIQ), or both.
+
+
+```{r sample_select_cog_tests}
+## Combine Wechsler and WISC test scores into unified variables
+memdat <- memdat %>%
+  mutate(
+    W_VCI = coalesce(WISC_Sv, WAIS_Sv),
+    W_WMI = coalesce(WISC_Ag, WAIS_Ag),
+    W_PS  = coalesce(WISC_Vg, WAIS_Vg),
+    W_GIQ = coalesce(WISC_G_IQ, WAIS_GEN_IQ)
+  )
+
+## Apply inclusion criteria: participants must have Wechsler AND/OR VLMT data
+memdat <- memdat %>%
+  mutate(gr_final_3 = case_when(
+    gr_final == 1 & (!is.na(W_GIQ) | !is.na(SDg1_5)) ~ 1,  # Controls with cognitive data
+    gr_final == 2 & (!is.na(W_GIQ) | !is.na(SDg1_5)) ~ 2,  # Cannabis users with cognitive data
+    TRUE ~ NA_real_
+  ))
+
+## Label final groups
+memdat <- memdat %>%
+  mutate(gr_final_3_label = case_when(
+    gr_final_3 == 1 ~ "Controls",
+    gr_final_3 == 2 ~ "Chronic Cannabis Users",
+    TRUE ~ NA_character_
+  ))
+
+## Display final sample size
+memdat %>%
+  count(gr_final_3_label) %>%
+  rename(`Group` = gr_final_3_label,
+         `N` = n) %>%
+  kbl(caption = "Final number of participants with cognitive data (Wechsler and/or VLMT)", digits = 0) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = TRUE,
+                position = "center")
+
+```
+
+
+
+### Save the analysis dataset
+
+```{r developed_dataset_save_2}
+memdat_select <- memdat %>%
+  filter(gr_final_3 %in% c(1, 2))  # Keep only selected participants, keep all variables
+write_xlsx(memdat_select, paste(path, "/DELTA_DataSet_For_Paper.xlsx", sep=""))
+```
+
+
+
+# Analysis of the selected data
+
+## Descriptives (between group socio-demographical comparison)
+
+First, we prepared descriptive information for the two groups: controls and cannabis consumers. We conducted between-group comparisons based on the following parameters:
+
+* non-substance related psychiatric diagnosis
+* Education level of participant and parents, and household income
+* Age and sex
+
+
+### Non-substance related psychiatric diagnosis
+
+Some participants completed the MINI-KID, and others the DIPS – both are structured clinical interviews assessing DSM psychiatric disorders in children and adolescents. Overlapping diagnoses from these two instruments were harmonised into common binary indicators for the present analyses.
+
+
+#### Computing the additional variables
+```{r non_sud_psych_DS_DIPS_MINI_KID}
+# Combine DIPS + MINI-KID diagnostic overlaps
+memdat_select <- memdat_select %>%
+  mutate(
+    DMK_AG      = coalesce(DIPS_5,     MK_E),
+    DMK_ADHD_C  = coalesce(DIPS_18_1,  MK_N1),
+    DMK_ADHD_I  = coalesce(DIPS_18_2,  MK_N2),
+    DMK_ADHD_H  = coalesce(DIPS_18_3,  MK_N3),
+    DMK_AUD     = coalesce(DIPS_16_1,  MK_K1),
+    DMK_AN      = coalesce(DIPS_13,    MK_R),
+    DMK_BED     = coalesce(DIPS_15,    MK_T),
+    DMK_BPD     = coalesce(DIPS_20,    MK_Y),
+    DMK_BN      = coalesce(DIPS_14,    MK_S),
+    DMK_CD      = coalesce(DIPS_19,    MK_O),
+    DMK_GAD     = coalesce(DIPS_8,     MK_U),
+    DMK_OCD     = coalesce(DIPS_10,    MK_I),
+    DMK_PD      = coalesce(DIPS_4,     MK_D),
+    DMK_PTSD    = coalesce(DIPS_12,    MK_J),
+    DMK_SAD     = coalesce(DIPS_3,     MK_F),
+    DMK_SUD     = coalesce(DIPS_17_1,  MK_L1),
+    DMK_SBD     = coalesce(DIPS_2,     MK_B12),
+    DMK_SP      = coalesce(DIPS_7,     MK_H),
+    DMK_SOP     = coalesce(DIPS_6,     MK_G)
+  ) %>%
+  mutate(across(starts_with("DMK_"), ~ as.numeric(as.character(.x)))) %>%
+  
+  # DSM category variables
+  mutate(
+    cat_neuro  = if_else(if_any(c(DMK_ADHD_C, DMK_ADHD_I, DMK_ADHD_H, MK_X,
+                                  MK_M1, MK_M2, MK_M3, MK_M4), ~ .x == 1), 1, 0),
+    cat_sch    = if_else(if_any(c(DIPS_21, MK_Q7, MK_Q4), ~ .x == 1), 1, 0),
+    cat_bip    = if_else(if_any(c(MK_C13_1, MK_C14_1, MK_C12_1, MK_C11_1, MK_C15_1), ~ .x == 1), 1, 0),
+    cat_depr   = if_else(if_any(c(DIPS_9, MK_A12_1, MK_A11_1, DMK_SBD, MK_B11_1), ~ .x == 1), 1, 0),
+    cat_anx    = if_else(if_any(c(DMK_GAD, DMK_PD, DMK_SAD, DMK_SP, DMK_SOP, DMK_AG), ~ .x == 1), 1, 0),
+    cat_ocd    = if_else(if_any(c(DMK_OCD, DIPS_11), ~ .x == 1), 1, 0),
+    cat_trauma = if_else(if_any(c(DMK_PTSD, MK_V), ~ .x == 1), 1, 0),
+    cat_eating = if_else(if_any(c(DMK_AN, DMK_BN, DMK_BED), ~ .x == 1), 1, 0),
+    cat_cond   = if_else(if_any(c(DMK_CD, MK_P), ~ .x == 1), 1, 0),
+    cat_pers   = DMK_BPD
+  )
+
+```
+
+#### Creating Table für Comorbities
+```{r non_sud_psych_DS_DIPS_MINI_KID_table}
+# Define comorbid disorder variables
+comorbid_vars <- c(
+  "cat_neuro","cat_sch","cat_bip","cat_depr","cat_anx",
+  "cat_ocd","cat_trauma","cat_eating","cat_cond","cat_pers"
+)
+
+# Get valid N per group (participants with at least one valid comorbidity variable)
+group_total_n <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  filter(if_any(all_of(comorbid_vars), ~ !is.na(.x))) %>%   # at least one non-missing
+  mutate(Group = if_else(gr_final_3 == 1, "Control", "Clinical")) %>%
+  count(Group, name = "ValidN") %>%
+  tidyr::complete(Group = c("Control", "Clinical"), fill = list(ValidN = 0))
+
+# Count number of comorbid diagnostic categories (excluding AUD & SUD)
+memdat_select <- memdat_select %>%
+  mutate(
+    n_comorbid_DS = case_when(
+      # all DSM categories missing → NA
+      if_all(all_of(comorbid_vars), ~ is.na(.x)) ~ NA_integer_,
+      
+      # otherwise sum categories marked "1"
+      TRUE ~ rowSums(across(all_of(comorbid_vars), ~ .x == 1), na.rm = TRUE)
+    )
+  )
+
+# Optional labels
+comorbid_labels <- c(
+  cat_neuro  = "Neurodevelopmental Disorders",
+  cat_sch    = "Schizophrenia Spectrum and Other Psychotic Disorders",
+  cat_bip    = "Bipolar and Related Disorders",
+  cat_depr   = "Depressive Disorders",
+  cat_anx    = "Anxiety Disorders",
+  cat_ocd    = "Obsessive-Compulsive and Related Disorders",
+  cat_trauma = "Trauma- and Stressor-Related Disorders",
+  cat_eating = "Feeding and Eating Disorders",
+  cat_cond   = "Disruptive/Impulse-Control/Conduct Disorders",
+  cat_pers   = "Personality Disorders"
+)
+
+# Convert DMK + DSM category variables into Yes/No factors
+memdat_select <- memdat_select %>%
+  mutate(
+    across(
+      c(
+        DMK_AG, DMK_ADHD_C, DMK_ADHD_I, DMK_ADHD_H, DMK_AUD, DMK_AN, DMK_BED,
+        DMK_BPD, DMK_BN, DMK_CD, DMK_GAD, DMK_OCD, DMK_PD, DMK_PTSD, DMK_SAD,
+        DMK_SUD, DMK_SBD, DMK_SP, DMK_SOP,
+        cat_neuro, cat_sch, cat_bip, cat_depr, cat_anx, cat_ocd,
+        cat_trauma, cat_eating, cat_cond, cat_pers
+      ),
+      .fns = ~ factor(.x, levels = c(0, 1), labels = c("No", "Yes"))
+    )
+  )
+
+```
+
+```{r non_sud_psych_DS_DIPS_MINI_KID_table_2}
+#summary_table_Control_Clinical_Groups
+
+comorbid_summary_table <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  dplyr::select(gr_final_3, all_of(comorbid_vars)) %>%
+  pivot_longer(
+    cols = all_of(comorbid_vars),
+    names_to = "DS", values_to = "Presented") %>%
+  filter(Presented == "Yes") %>%  
+  group_by(gr_final_3, DS) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  mutate(
+    Group = if_else(gr_final_3 == 1, "Control", "Clinical"),
+    DS = comorbid_labels[DS]
+  ) %>%
+  dplyr::select(Group, DS, N) %>%
+  pivot_wider(
+    names_from = Group,
+    values_from = N,
+    values_fill = 0
+  )
+
+if ("Clinical" %in% colnames(comorbid_summary_table)) {
+  comorbid_summary_table <- comorbid_summary_table %>%
+    arrange(desc(Clinical))
+} else {
+  warning("Clinical group not present in the data — skipping sort.")
+}
+
+# View the result
+print(comorbid_summary_table)
+
+```
+
+```{r non_sud_psych_DS_DIPS_MINI_KID_table_3}
+# publication table
+
+# Ensure group sizes
+group_sizes <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  mutate(Group = if_else(gr_final_3 == 1, "Control", "Clinical")) %>%
+  count(Group, name = "Denom") %>%
+  tidyr::complete(Group = c("Control", "Clinical"), fill = list(Denom = 0))
+
+# Define display order of diagnostic categories
+ds_order <- comorbid_summary_table$DS
+
+# Long format and percentage
+tbl_long <- comorbid_summary_table %>%
+  tidyr::pivot_longer(cols = c("Control", "Clinical"),
+                      names_to = "Group", values_to = "N") %>%
+  dplyr::left_join(group_sizes, by = "Group") %>%
+  dplyr::mutate(
+    Percent = ifelse(Denom > 0, N / Denom, NA_real_),
+    Display = dplyr::case_when(
+      is.na(Percent) ~ as.character(N),
+      TRUE ~ sprintf("%d (%.1f%%)", N, Percent * 100)
+    ),
+    DS = factor(DS, levels = ds_order)
+  )
+
+# Reshape to wide
+tbl_wide <- tbl_long %>%
+  dplyr::select(DS, Group, Display) %>%
+  tidyr::pivot_wider(names_from = Group, values_from = Display)
+
+# Format with gt
+gt_tbl <- tbl_wide %>%
+  gt() %>%
+  tab_header(
+    title = md("**Comorbid DSM Categories**"),
+    subtitle = md(
+  paste0(
+    "Control group: n = ", group_total_n$ValidN[group_total_n$Group == "Control"],
+    "; Clinical group: n = ", group_total_n$ValidN[group_total_n$Group == "Clinical"])
+  )
+  ) %>%
+  cols_label(
+    DS = "Diagnostic category",
+    Control = "Control, n (%)",
+    Clinical = "Clinical, n (%)"
+  ) %>%
+  tab_options(
+    table.font.names = c("Arial", "Helvetica", "Liberation Sans", "sans-serif"),
+    table.font.size = px(12),
+    data_row.padding = px(6),
+    heading.background.color = "#F7F7F7",
+    column_labels.background.color = "#F7F7F7",
+    table.border.top.width = px(0),
+    table.border.bottom.width = px(0)
+  ) %>%
+  tab_style(
+    style = list(cell_text(weight = "bold")),
+    locations = list(cells_column_labels(everything()))
+  ) %>%
+  fmt_missing(everything(), missing_text = "—") %>%
+  tab_source_note(md("Values are *N (percent within group)*. Percentages use group denominators shown in the subtitle."))
+
+tbl_wide <- bind_rows(
+  tbl_wide,
+  tibble(
+    DS = "Total N (available DS data)",
+    Control = as.character(group_total_n$ValidN[group_total_n$Group == "Control"]),
+    Clinical = as.character(group_total_n$ValidN[group_total_n$Group == "Clinical"])
+  )
+)
+
+tbl_wide %>%
+  kable(caption = "Comorbid DSM Categories", align = "lcc")
+
+comorb_CC_n  <- group_total_n$ValidN[group_total_n$Group == "Control"]
+comorb_CCU_n <- group_total_n$ValidN[group_total_n$Group == "Clinical"]
+
+ft_ds <- flextable(tbl_wide) %>%
+  set_header_labels(
+    DS      = "Diagnostic category",
+    Control = paste0("Control (n=", comorb_CC_n, ")"),
+    Clinical= paste0("Clinical (n=", comorb_CCU_n, ")")
+  ) %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+  fontsize(size = 12, part = "all") %>%
+  autofit()
+
+print(
+  read_docx() %>% body_add_flextable(ft_ds),
+  target = paste(path, "/Shvedovskii_Table_S1_DSM_Categories.docx", sep="")
+)
+
+```
+
+```{r comorbid load comparisons}
+# Build analysis frame from your objects
+com_load_dat <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  transmute(
+    Group = factor(if_else(gr_final_3 == 1, "Controls", "Chronic Cannabis Users"),
+                   levels = c("Chronic Cannabis Users","Controls")), 
+    n_comorbid_DS = as.numeric(n_comorbid_DS)
+  ) %>%
+  drop_na(n_comorbid_DS)
+
+# Descriptives per group
+com_load_summ <- com_load_dat %>%
+  group_by(Group) %>%
+  summarise(
+    n    = n(),
+    mean = mean(n_comorbid_DS),
+    sd   = sd(n_comorbid_DS),
+    med  = median(n_comorbid_DS),
+    q1   = quantile(n_comorbid_DS, 0.25),
+    q3   = quantile(n_comorbid_DS, 0.75),
+    minv = min(n_comorbid_DS),
+    maxv = max(n_comorbid_DS),
+    .groups = "drop"
+  )
+
+cc_com_load  <- filter(com_load_summ, Group == "Controls")
+ccu_com_load <- filter(com_load_summ, Group == "Chronic Cannabis Users")
+
+wx_com_load <- wilcox.test(n_comorbid_DS ~ Group, data = com_load_dat,
+                  exact = FALSE, conf.int = TRUE, conf.level = 0.95)
+
+#effect_size
+
+ef_s_x_com_load  <- com_load_dat$n_comorbid_DS[com_load_dat$Group == "Chronic Cannabis Users"]
+ef_s_y_com_load  <- com_load_dat$n_comorbid_DS[com_load_dat$Group == "Controls"]
+
+# Vargha–Delaney A = P(X>Y) + 0.5*P(X=Y)
+dmat <- outer(ef_s_x_com_load, ef_s_y_com_load, "-")
+A    <- mean(dmat > 0) + 0.5 * mean(dmat == 0)
+
+# Rank-biserial correlation r_rb = 2*A - 1
+r_rb <- 2*A - 1
+
+# Optional: Cliff's delta 95% CI if effsize is available
+cliff_ci_com_load <- "—"
+if (requireNamespace("effsize", quietly = TRUE)) {
+  cd <- effsize::cliff.delta(ef_s_x_com_load, ef_s_y_com_load, conf.level = 0.95)
+  cliff_ci_com_load <- sprintf("[%.2f; %.2f]", cd$conf.int[1], cd$conf.int[2])
+}
+
+# format helpers
+fmt  <- function(x, d = 2) ifelse(is.na(x), "—", formatC(x, format = "f", digits = d))
+pstr <- function(p) ifelse(is.na(p), "—", ifelse(p < .001, "<0.001", sprintf("%.3f", p)))
+
+# Column headers with Ns
+col_cc <- sprintf("Controls (n=%d)", cc_com_load$n)
+col_ccu <- sprintf("Chronic Cannabis Users (n=%d)", ccu_com_load$n)
+
+# Build the table; pack Wilcoxon + effect sizes into the last column
+com_load_display_tbl <- tibble(
+  `Clinical Load parameters per participant` = c(
+    "n",
+    "Mean (SD)",
+    "Median [IQR]",
+    "Min–Max"
+  ),
+  !!col_cc := c(
+    cc_com_load$n,
+    sprintf("%s (%s)", fmt(cc_com_load$mean), fmt(cc_com_load$sd)),
+    sprintf("%s<br>[%s; %s]", fmt(cc_com_load$med), fmt(cc_com_load$q1), fmt(cc_com_load$q3)),
+    sprintf("%s–%s", fmt(cc_com_load$minv), fmt(cc_com_load$maxv))
+  ),
+  !!col_ccu := c(
+    ccu_com_load$n,
+    sprintf("%s (%s)", fmt(ccu_com_load$mean), fmt(ccu_com_load$sd)),
+    sprintf("%s<br>[%s; %s]", fmt(ccu_com_load$med), fmt(ccu_com_load$q1), fmt(ccu_com_load$q3)),
+    sprintf("%s–%s", fmt(ccu_com_load$minv), fmt(ccu_com_load$maxv))
+  ),
+  `Wilcoxon / Effect sizes` = c(
+    sprintf("Wilcoxon W&nbsp;&nbsp;%s", as.character(unname(wx_com_load$statistic))),
+    sprintf("HL shift (CCU − CC)&nbsp;&nbsp;%s", fmt(unname(wx_com_load$estimate), 2)),
+    if (!is.null(wx_com_load$conf.int))
+      sprintf("95%% CI (shift)&nbsp;&nbsp;[%s; %s]", fmt(wx_com_load$conf.int[1], 2), fmt(wx_com_load$conf.int[2], 2))
+    else "95% CI (shift)&nbsp;&nbsp;—",
+    paste0(
+      "p (Wilcoxon)&nbsp;&nbsp;", pstr(unname(wx_com_load$p.value)),
+      "<br>Rank-biserial r&nbsp;&nbsp;", fmt(r_rb, 2),
+      "<br>Vargha–Delaney A&nbsp;&nbsp;", fmt(A, 2),
+      "<br>Cliff’s δ 95% CI&nbsp;&nbsp;", cliff_ci_com_load
+    )
+  )
+)
+
+com_load_desc_block <- tibble(
+  Measure   = c("n", "Mean (SD)", "Median [IQR]", "Min–Max"),
+  Controls  = c(cc_com_load$n,
+                sprintf("%s (%s)", fmt(cc_com_load$mean), fmt(cc_com_load$sd)),
+                sprintf("%s [%s; %s]", fmt(cc_com_load$med), fmt(cc_com_load$q1), fmt(cc_com_load$q3)),
+                sprintf("%s–%s", fmt(cc_com_load$minv), fmt(cc_com_load$maxv))),
+  CCU       = c(ccu_com_load$n,
+                sprintf("%s (%s)", fmt(ccu_com_load$mean), fmt(ccu_com_load$sd)),
+                sprintf("%s [%s; %s]", fmt(ccu_com_load$med), fmt(ccu_com_load$q1), fmt(ccu_com_load$q3)),
+                sprintf("%s–%s", fmt(ccu_com_load$minv), fmt(ccu_com_load$maxv))),
+  Heading   = "",
+  Statistic = "",
+  Result    = ""
+)
+
+com_load_wilcox_block <- tibble(
+  Measure   = "",
+  Controls  = "", CCU = "",
+  Heading   = "Wilcoxon",
+  Statistic = c("Wilcoxon W", "HL shift (CCU − CC)", "95% CI (shift)", "p (Wilcoxon)"),
+  Result    = c(as.character(unname(wx_com_load$statistic)),
+                fmt(unname(wx_com_load$estimate), 2),
+                if (!is.null(wx_com_load$conf.int))
+                  sprintf("[%s; %s]", fmt(wx_com_load$conf.int[1], 2), fmt(wx_com_load$conf.int[2], 2))
+                else "—",
+                pstr(unname(wx_com_load$p.value)))
+)
+
+com_load_effects_block <- tibble(
+  Measure   = "",
+  Controls  = "", CCU = "",
+  Heading   = "Effect sizes",
+  Statistic = c("Rank-biserial r", "Vargha–Delaney A", "Cliff’s δ 95% CI"),
+  Result    = c(fmt(r_rb, 2), fmt(A, 2), cliff_ci_com_load)
+)
+
+com_load_out_tbl <- 
+  tibble::tribble(
+ ~Measure,          ~Controls,                                            ~`Chronic Cannabis Users`,
+ ~Wilcoxon_stat,    ~Wilcoxon_value,                                      ~Effect_stat,            ~Effect_value,
+ "n",               as.character(cc_com_load$n),                          as.character(ccu_com_load$n),
+ "W",               as.character(unname(wx_com_load$statistic)),          "Rank-biserial r",       fmt(r_rb, 2),
+
+ "Mean (SD)",       sprintf("%s (%s)", fmt(cc_com_load$mean), fmt(cc_com_load$sd)),
+                    sprintf("%s (%s)", fmt(ccu_com_load$mean), fmt(ccu_com_load$sd)),
+ "HL shift (CCU − CC)", fmt(unname(wx_com_load$estimate), 2),             "Vargha–Delaney A",      fmt(A, 2),
+
+ "Median [IQR]",    sprintf("%s\n[%s; %s]", fmt(cc_com_load$med),  fmt(cc_com_load$q1),  fmt(cc_com_load$q3)),
+                    sprintf("%s\n[%s; %s]", fmt(ccu_com_load$med), fmt(ccu_com_load$q1), fmt(ccu_com_load$q3)),
+ "95% CI (shift)",  sprintf("[%s; %s]", fmt(wx_com_load$conf.int[1], 2), fmt(wx_com_load$conf.int[2], 2)),
+                    "Cliff’s δ 95% CI",     cliff_ci_com_load,
+
+ "Min–Max",         sprintf("%s–%s", fmt(cc_com_load$minv),  fmt(cc_com_load$maxv)),
+                    sprintf("%s–%s", fmt(ccu_com_load$minv), fmt(ccu_com_load$maxv)),
+ "p (Wilcoxon)",    pstr(unname(wx_com_load$p.value)),                    "",                      ""
+)
+
+com_load_cc_n  <- cc_com_load$n
+com_load_ccu_n <- ccu_com_load$n
+
+# Print (HTML): allow <br> in cells
+kable(
+  com_load_display_tbl , escape = FALSE,
+  align = c("l","c","c","l"),
+  caption = "Clinical Load parameters per participant — CC vs CCU (Wilcoxon, effect sizes)"
+)
+
+com_load_ft <- flextable(com_load_out_tbl) %>%
+ set_header_labels(
+    Measure = "Comorbidity Load",
+    Controls = sprintf("Controls (n=%d)", cc_com_load$n),
+    `Chronic Cannabis Users` = sprintf("Chronic Cannabis Users (n=%d)", ccu_com_load$n),
+    Wilcoxon_stat = "", Wilcoxon_value = "",
+    Effect_stat = "",   Effect_value   = ""
+  ) %>%
+  add_header_row(values = c("", "", "", "Wilcoxon test", "Effect-size"),
+                 colwidths = c(1, 1, 1, 2, 2)) %>%
+  align(part = "header", align = "center") %>%
+  bold(part = "header") %>%
+  align(j = c("Controls","Chronic Cannabis Users","Wilcoxon_value","Effect_value"),
+        align = "center", part = "body") %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+  fontsize(size = 12, part = "all") %>%
+  autofit() %>%
+  fit_to_width(max_width = 6.5)
+
+print(
+  read_docx() %>% body_add_flextable(com_load_ft),
+  target = paste(path, "/Shvedovskii_Table_S2_Comorbid_Load.docx", sep="")
+)
+```
+
+### Education level of participant and parents, and household income
+
+Data were derived from the specially designed DELTA study questionnaire (MATRIX – Soziodemographie), which was completed by the participants' parents. For this variable, the following question was used: "Welche Schule besucht Ihr Kind gegenwärtig bzw. welche Berufstätigkeit übt Ihr Kind gegenwärtig aus?".
+Educational information was decoded using the ISCED 2011 classification and qualitatively subdivided into three levels based on the answers possibilities:
+
+** Low (Hauptschule, Realschule, Berufsvorbereitung, Arbeitslos);
+** Middle (Gymnasium, Fach-/Berufsschule);
+** High (no possible answer in this question for this category);
+
+* Parental education level
+
+Parental education was assessed using the question "Höchster Schulabschluss" from the MATRIX – Soziodemographie. Responses for mothers and fathers were initially analyzed separately. The ISCED 2011 classification was applied. Finally, we computed the combined education levels of father and mother. For this aim, we selected the lowest available education level in the pair:
+
+** Low (Kein Schulabschluss, Sonderschule, Hauptschule, Realschule);
+** Middle (Abitur);
+** High ((Fach)hochschule/Universität);
+
+* Household income
+
+Household income information was obtained using the question "Durchschnittliches jährliches Nettoeinkommen" from the MATRIX – Soziodemographie. Results were categorized into three income levels: Low (≤20,000 €), Middle (20,001–45,000 €), High (>45,000 €) based on the median net household income in Germany.
+
+The categorization of education and household income levels was consistent with previous research conducted by the DELTA study group.
+
+All the variables mentioned above were compared between groups using appropriate statistical methods, selected based on the characteristics of the data (e.g., sample size, distribution, type of variable).
+
+```{r education_level_parents_participants}
+#ISCED Education level of the participant
+memdat_select <- memdat_select %>%
+  mutate(S_fg_8_ISCED = case_when(
+    Sozio_fg_8 %in% c(
+      "SD_fg_8_HS", 
+      "SD_fg_8_RS",
+      "SD_fg_8_HS  SD_fg_8_AndSch",
+      "SD_fg_8_HS  SD_fg_8_Arblos",
+      "SD_fg_8_HS  SD_fg_8_BV",
+      "SD_fg_8_RS  SD_fg_8_BV",
+      "SD_fg_8_RS  SD_fg_8_AndSch"
+    ) ~ "Low",
+    
+    Sozio_fg_8 %in% c(
+      "SD_fg_8_Gym",
+      "SD_fg_8_BS",
+      "SD_fg_8_BV",
+      "SD_fg_8_Arblos  SD_fg_8_BV",
+      "SD_fg_8_BS  SD_fg_8_BV",
+      "SD_fg_8_BV  SD_fg_8_AndSch",
+      "SD_fg_8_Gym  SD_fg_8_BV"
+    ) ~ "Middle",
+    
+     TRUE ~ NA_character_ 
+  ))
+
+#ISCED Education level of parents
+# mother ISCED level
+memdat_select<- memdat_select %>%
+  mutate(mother_ISCED = case_when(
+    Sozio_fg_7_M %in% c("kein", "Haupt", "Real") ~ 1, 
+    Sozio_fg_7_M == "Abi" ~ 2,    
+    Sozio_fg_7_M == "Uni_FOS" ~ 3,
+    TRUE ~ NA_real_         
+  ))
+#father ISCED level
+memdat_select <- memdat_select %>%
+  mutate(father_ISCED = case_when(
+    Sozio_fg_13_V %in% c("kein", "Haupt", "Real") ~ 1, 
+    Sozio_fg_13_V == "Abi" ~ 2,    
+    Sozio_fg_13_V == "Uni_FOS" ~ 3,
+    TRUE ~ NA_real_         
+  ))
+#mean level of both parents
+memdat_select <- memdat_select %>%
+  mutate(parents_ISCED_mean = rowMeans(dplyr::select(., mother_ISCED, father_ISCED), na.rm = TRUE))
+
+memdat_select <- memdat_select %>%
+  mutate(parents_ISCED_mean = ifelse(
+    is.na(mother_ISCED) & is.na(father_ISCED),
+    NA_real_,
+    parents_ISCED_mean
+  ))
+
+memdat_select <- memdat_select %>%
+  mutate(parents_ISCED_level = case_when(
+    parents_ISCED_mean >= 1.0 & parents_ISCED_mean <= 1.5 ~ "Low",
+    parents_ISCED_mean > 1.5 & parents_ISCED_mean <= 2.5 ~ "Middle",
+    parents_ISCED_mean > 2.5 & parents_ISCED_mean <= 3.0 ~ "High",
+    TRUE ~ NA_character_
+  ))
+#Household year income level
+memdat_select <- memdat_select %>%
+  mutate(S_fg_21_lvl = case_when(
+    Sozio_fg_21 == 0 ~ "low",
+    Sozio_fg_21 == 1 ~ "low",
+    Sozio_fg_21 == 2 ~ "middle",
+    Sozio_fg_21 == 3 ~ "middle",
+    Sozio_fg_21 == 4 ~ "high",
+    TRUE ~ NA_character_
+  ))
+memdat_select <- memdat_select %>%
+  mutate(
+    gr_final_3 = as.factor(gr_final_3),
+    S_fg_8_ISCED = as.factor(S_fg_8_ISCED),
+    mother_ISCED = as.factor(mother_ISCED),
+    father_ISCED = as.factor(father_ISCED),
+    parents_ISCED_level = as.factor(parents_ISCED_level),
+    S_fg_21_lvl = as.factor(S_fg_21_lvl)
+  )
+
+```
+
+### Descrtiptivles: normality check, statistical comparisons, final table
+```{r discriptives_table}
+#age
+shapiro_age_controls <- shapiro.test(memdat_select$age_t0[memdat_select$gr_final_3== 1])
+shapiro_age_ccu <- shapiro.test(memdat_select$age_t0[memdat_select$gr_final_3 == 2])
+age_ttest <- t.test(memdat_select$age_t0~memdat_select$gr_final_3)
+ef_s_age <- cohens_d(age_t0 ~ gr_final_3, data = memdat_select)
+
+# non-SUD diagnoses: Wilcoxon test
+wilcox_DS <- wilcox.test(n_comorbid_DS  ~ gr_final_3, data = memdat_select)
+ef_DS <- cohens_d(n_comorbid_DS  ~ gr_final_3, data = memdat_select)
+
+#chi_square/fischer and effect-size for factor vars (phi or cramer's v)
+#sex
+tbl_sex <- table(memdat_select$gr_final_3, memdat_select$sex)
+chi_sex <- chisq.test(tbl_sex)$expected
+chi_sex_1 <- chisq.test(table(memdat_select$gr_final_3, memdat_select$sex))
+phi_sex <- phi(tbl_sex)
+
+#parents edu lvl
+tbl_p_ed <- table(memdat_select$gr_final_3, memdat_select$parents_ISCED_level)
+chi_p_ed <- chisq.test(tbl_p_ed)$expected
+fisher_P_ed <- fisher.test(table(memdat_select$gr_final_3,memdat_select$parents_ISCED_level))
+cramer_parents <- cramers_v(tbl_p_ed)
+
+#participant edu lvl
+tbl_ad_ed <- table(memdat_select$gr_final_3, memdat_select$S_fg_8_ISCED)
+chi_ad_ed <- chisq.test(tbl_ad_ed)$expected
+fisher_ad_ed <- fisher.test(table(memdat_select$gr_final_3, memdat_select$S_fg_8_ISCED))
+cramer_ad <- cramers_v(tbl_ad_ed)
+
+#income lvl of family
+tbl_inc <- table(memdat_select$gr_final_3, memdat_select$S_fg_21_lvl)
+chi_inc <- chisq.test(tbl_inc)$expected
+fisher_inc <- fisher.test(table(memdat_select$gr_final_3, memdat_select$S_fg_21_lvl))
+cramer_inc <- cramers_v(tbl_inc)
+
+#n part of the table
+sum_age_sex <- memdat_select %>% 
+  group_by(gr_final_3) %>% 
+  summarise(
+    age_mean = mean(age_t0, na.rm=TRUE),
+    age_sd = sd(age_t0, na.rm=TRUE),
+    n = n(),
+    n_female = sum(sex == 1, na.rm = TRUE),
+    `Sex (% female)` = round(100 * n_female / n, 1))
+
+sum_p_ed <- memdat_select %>% 
+  group_by(gr_final_3) %>% 
+  summarise(
+    n_p_ed = sum(!is.na(parents_ISCED_level)),
+    low_p_ed = sum(parents_ISCED_level == "Low", na.rm = TRUE),
+    low_p_ed_perc = round(100 * low_p_ed /n_p_ed, 1),
+    mid_p_ed = sum(parents_ISCED_level == "Middle", na.rm = TRUE),
+    mid_p_ed_perc = round(100 * mid_p_ed /n_p_ed, 1),
+    hi_p_ed = sum(parents_ISCED_level == "High", na.rm = TRUE),
+    hi_p_ed_perc = round(100* hi_p_ed /n_p_ed, 1))
+
+sum_ad_ed <- memdat_select %>% 
+  group_by(gr_final_3) %>% 
+  summarise(
+    n_ad_ed = sum(!is.na(S_fg_8_ISCED)),
+    low_ad_ed = sum(S_fg_8_ISCED == "Low", na.rm = TRUE),
+    low_ad_ed_perc = round(100 * low_ad_ed /n_ad_ed, 1),
+    mid_ad_ed = sum(S_fg_8_ISCED == "Middle", na.rm = TRUE),
+    mid_ad_ed_perc = round(100 * mid_ad_ed /n_ad_ed, 1))
+
+sum_inc <- memdat_select %>% 
+  group_by(gr_final_3) %>% 
+  summarise(
+    n_inc = sum(!is.na(S_fg_21_lvl)),
+    low_inc = sum(S_fg_21_lvl == "low", na.rm = TRUE),
+    low_inc_perc = round(100 * low_inc /n_inc, 1),
+    mid_inc = sum(S_fg_21_lvl == "middle", na.rm = TRUE),
+    mid_perc = round(100 * mid_inc /n_inc, 1),
+    hi_inc = sum(S_fg_21_lvl == "high", na.rm = TRUE),
+    hi_inc_perc = round(100 * hi_inc /n_inc, 1))
+
+sum_non_SUD_DS <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  group_by(gr_final_3) %>%
+  summarise(
+    n_avail = sum(!is.na(n_comorbid_DS)),
+    n_0_comorbid = sum(n_comorbid_DS == 0, na.rm = TRUE),
+    n_1_comorbid = sum(n_comorbid_DS  == 1, na.rm = TRUE),
+    n_2plus_comorbid = sum(n_comorbid_DS >= 2, na.rm = TRUE)
+  )
+
+
+desc_table <- tribble(
+  ~Variable, 
+  ~controls, 
+  ~CCU, 
+  ~p_value, 
+  ~effect,
+  
+  "Mean age (SD)", 
+  paste0(round(sum_age_sex$age_mean[sum_age_sex$gr_final_3 == 1], 2), " (", round(sum_age_sex$age_sd[sum_age_sex$gr_final_3 == 1], 2), ")"),
+  paste0(round(sum_age_sex$age_mean[sum_age_sex$gr_final_3 == 2], 2), " (", round(sum_age_sex$age_sd[sum_age_sex$gr_final_3 == 2], 2), ")"),
+  paste0(round(age_ttest$p.value, 3)),
+  paste0(round(ef_s_age$effsize, 2)),
+  
+  "Sex (% female)", 
+  paste0(round(sum_age_sex$`Sex (% female)`[sum_age_sex$gr_final_3 == 1], 2)),
+  paste0(round(sum_age_sex$`Sex (% female)`[sum_age_sex$gr_final_3 == 2], 2)),
+  paste0(round(chi_sex_1$p.value, 3)),
+  paste0(round(phi_sex$phi_adjusted, 2)),
+  
+
+  "Mean education level of parents (ISCED)",
+  paste0("(n=", round(sum_p_ed$n_p_ed[sum_p_ed$gr_final_3 == 1], 2), ")"),
+  paste0("(n=", round(sum_p_ed$n_p_ed[sum_p_ed$gr_final_3 == 2], 2), ")"),
+  paste0(round(fisher_P_ed$p.value, 3)),
+  paste0(round(cramer_parents$Cramers_v_adjusted, 2)),
+
+  "Low",
+  paste0(round(sum_p_ed$low_p_ed[sum_p_ed$gr_final_3 == 1], 2), " (", round(sum_p_ed$low_p_ed_perc[sum_p_ed$gr_final_3 == 1], 2), ")"),
+  paste0(round(sum_p_ed$low_p_ed[sum_p_ed$gr_final_3 == 2], 2), " (", round(sum_p_ed$low_p_ed_perc[sum_p_ed$gr_final_3 == 2], 2), ")"),
+  "", "",
+
+  "Middle",
+  paste0(round(sum_p_ed$mid_p_ed[sum_p_ed$gr_final_3 == 1], 2), " (", round(sum_p_ed$mid_p_ed_perc[sum_p_ed$gr_final_3 == 1], 2), ")"),
+  paste0(round(sum_p_ed$mid_p_ed[sum_p_ed$gr_final_3 == 2], 2), " (", round(sum_p_ed$mid_p_ed_perc[sum_p_ed$gr_final_3 == 2], 2), ")"),
+  "", "",
+
+  "High",
+  paste0(round(sum_p_ed$hi_p_ed[sum_p_ed$gr_final_3 == 1], 2), " (", round(sum_p_ed$hi_p_ed_perc[sum_p_ed$gr_final_3 == 1], 2), ")"),
+  paste0(round(sum_p_ed$hi_p_ed[sum_p_ed$gr_final_3 == 2], 2), " (", round(sum_p_ed$hi_p_ed_perc[sum_p_ed$gr_final_3 == 2], 2), ")"),
+  "", "",
+
+  "Education level of participant (ISCED)",
+  paste0("(n=", round(sum_ad_ed$n_ad_ed[sum_ad_ed$gr_final_3 == 1], 2), ")"),
+  paste0("(n=", round(sum_ad_ed$n_ad_ed[sum_ad_ed$gr_final_3 == 2], 2), ")"),
+  paste0(round(fisher_ad_ed$p.value, 3)),
+  paste0(round(cramer_ad$Cramers_v_adjusted, 2)),
+
+  "Low",
+  paste0(round(sum_ad_ed$low_ad_ed[sum_ad_ed$gr_final_3 == 1], 2), " (", round(sum_ad_ed$low_ad_ed_perc[sum_ad_ed$gr_final_3 == 1], 2), ")"),
+  paste0(round(sum_ad_ed$low_ad_ed[sum_ad_ed$gr_final_3 == 2], 2), " (", round(sum_ad_ed$low_ad_ed_perc[sum_ad_ed$gr_final_3 == 2], 2), ")"),
+  "", "",
+
+  "Middle",
+  paste0(round(sum_ad_ed$mid_ad_ed[sum_ad_ed$gr_final_3 == 1], 2), " (", round(sum_ad_ed$mid_ad_ed_perc[sum_ad_ed$gr_final_3 == 1], 2), ")"),
+  paste0(round(sum_ad_ed$mid_ad_ed[sum_ad_ed$gr_final_3 == 2], 2), " (", round(sum_ad_ed$mid_ad_ed_perc[sum_ad_ed$gr_final_3 == 2], 2), ")"),
+  "", "",
+
+  "Income Status of the Family",
+  paste0("(n=", round(sum_inc$n_inc[sum_inc$gr_final_3 == 1], 2), ")"),
+  paste0("(n=", round(sum_inc$n_inc[sum_inc$gr_final_3 == 2], 2), ")"),
+  paste0(round(fisher_inc$p.value, 3)),
+  paste0(round(cramer_inc$Cramers_v_adjusted, 2)),
+
+  "Low",
+  paste0(round(sum_inc$low_inc[sum_inc$gr_final_3 == 1], 2), " (", round(sum_inc$low_inc_perc[sum_inc$gr_final_3 == 1], 2), ")"),
+  paste0(round(sum_inc$low_inc[sum_inc$gr_final_3 == 2], 2), " (", round(sum_inc$low_inc_perc[sum_inc$gr_final_3 == 2], 2), ")"),
+  "", "",
+
+  "Middle",
+  paste0(round(sum_inc$mid_inc[sum_inc$gr_final_3 == 1], 2), " (", round(sum_inc$mid_perc[sum_inc$gr_final_3 == 1], 2), ")"),
+  paste0(round(sum_inc$mid_inc[sum_inc$gr_final_3 == 2], 2), " (", round(sum_inc$mid_perc[sum_inc$gr_final_3 == 2], 2), ")"),
+  "", "",
+
+  "High",
+  paste0(round(sum_inc$hi_inc[sum_inc$gr_final_3 == 1], 2), " (", round(sum_inc$hi_inc_perc[sum_inc$gr_final_3 == 1], 2), ")"),
+  paste0(round(sum_inc$hi_inc[sum_inc$gr_final_3 == 2], 2), " (", round(sum_inc$hi_inc_perc[sum_inc$gr_final_3 == 2], 2), ")"),
+  "", ""
+)
+
+desc_gt <- desc_table %>% 
+  gt () %>% 
+  cols_label(
+    Variable = "Parameters",
+    controls = "CC (n=31)",
+    CCU = "Chronic Cannabis Users (n=31)",
+    p_value = "p-value",
+    effect = "Effect-size"
+    ) %>%
+  fmt_number(columns = c(p_value, effect), decimals = 2)
+
+ft <- flextable(desc_table) %>% 
+  set_header_labels(
+    Variable = "Parameters",
+    controls = "CC (n=31)",
+    CCU = "CCU (n=31)",
+    p_value = "p-value",
+    effect = "Effect-size"
+  ) %>%
+  font(fontname = "Times New Roman", part = "all") %>% 
+  fontsize(size = 12, part = "all") |> autofit()
+
+print(read_docx() %>% 
+        body_add_flextable(ft), target = paste(path, "/Shvedovskii_Table_1_Sample_Descriptives.docx", sep=""))
+ft
+```
+### Behavioral patterns distribution in the CCU group
+
+Additionally, we build the cannabis behavior patterns distribution table for the CCU group. We include the data on the existing variables from the Substance Anamnesis Questionnaire. Additionally we computed following cumulative variables:
+* Duration of cannabis use (C_DU) = current age (age_t0) - age of first cannabis use (C_FUA)
+* Cannabis Exposure in last month (C_EX_M) or in average month in last year (C_EX_Y): days of use (month or average month in last year C_CD_M or C_CD_Y) * amount of cannabis used per day (month or average month in last year APD_M or APD_Y)
+
+```{r cannabis_behavior_variables}
+memdat_select <- memdat_select %>% 
+  mutate(
+#Exposure rates (EX_M - for last month, EX_Y - for last year, but not the last month)
+    C_EX_M = C_CD_M * C_APD_M,
+    C_EX_Y = C_CD_Y * C_APD_Y,
+#Duration of use
+    C_DU = age_t0 - C_FUA)
+```
+
+```{r CCU_group_behav_patterns}
+cannabis_vars <- c("C_FUA", "C_DU", "C_APD_M", "C_APD_Y", "C_CD_M", "C_CD_Y", "C_EX_M", "C_EX_Y")
+
+cannabis_labels <- c(
+  C_FUA  = "Age of first use (years)",
+  C_DU   = "Duration of use (years)",
+  C_APD_M = "Amount of use (last month, g)",
+  C_APD_Y = "Amount of use (avg. month in last year, g)",
+  C_CD_M  = "Days of Use (last month)",
+  C_CD_Y  = "Days of Use (avg. month in last year)",
+  C_EX_M  = "Cannabis exposure (last month)",
+  C_EX_Y  = "Cannabis exposure (avg. month in last year)"
+)
+
+CCU_summary <- memdat_select %>%
+  dplyr::filter(gr_final_3 == 2) %>%
+  dplyr::summarise(across(
+    all_of(cannabis_vars),
+    list(
+      n      = ~sum(!is.na(.x)),
+      mean   = ~mean(.x, na.rm = TRUE),
+      sd     = ~sd(.x, na.rm = TRUE),
+      median = ~median(.x, na.rm = TRUE),
+      q1     = ~quantile(.x, 0.25, na.rm = TRUE),
+      q3     = ~quantile(.x, 0.75, na.rm = TRUE),
+      min    = ~min(.x, na.rm = TRUE),
+      max    = ~max(.x, na.rm = TRUE)
+    ),
+    .names = "{.col}_{.fn}"
+  ))
+
+CCU_tbl <- CCU_summary %>%
+  tidyr::pivot_longer(
+    everything(),
+    names_to = c("variable","stat"),
+    names_pattern = "^(.*)_(n|mean|sd|median|q1|q3|min|max)$"
+  ) %>%
+  tidyr::pivot_wider(names_from = stat, values_from = value) %>%
+  dplyr::mutate(
+    # 95% CI for the mean (t-based)
+    se     = sd / sqrt(pmax(n, 1)),
+    tcrit  = qt(0.975, df = pmax(n - 1, 1)),
+    ci_l   = ifelse(n > 1 & is.finite(sd), mean - tcrit * se, NA_real_),
+    ci_u   = ifelse(n > 1 & is.finite(sd), mean + tcrit * se, NA_real_),
+
+    `Cannabis use parameter` = cannabis_labels[variable],
+    `Mean (SD)`     = sprintf("%.2f (%.2f)", mean, sd),
+    `Mean 95% CI`   = ifelse(is.na(ci_l), "—", sprintf("[%.2f; %.2f]", ci_l, ci_u)),
+    `Median [IQR]`  = sprintf("%.2f [%.2f; %.2f]", median, q1, q3),
+    `Min–Max`       = ifelse(n == 0, "—", sprintf("%.2f–%.2f", min, max))
+  ) %>%
+  dplyr::select(`Cannabis use parameter`, `Mean (SD)`, `Mean 95% CI`, `Median [IQR]`, `Min–Max`) %>%  # <-- N removed here
+  dplyr::mutate(`Cannabis use parameter` = factor(`Cannabis use parameter`,
+                                                  levels = cannabis_labels[cannabis_vars])) %>%
+  dplyr::arrange(`Cannabis use parameter`) %>%
+  dplyr::mutate(`Cannabis use parameter` = as.character(`Cannabis use parameter`))
+
+ft_ccu <- flextable(CCU_tbl) %>%
+  set_header_labels(
+    `Cannabis use parameter` = "Cannabis use parameter",
+    `Mean (SD)` = "Mean (SD)",
+    `Mean 95% CI` = "Mean 95% CI",
+    `Median [IQR]` = "Median [IQR]",
+    `Min–Max` = "Min–Max"
+  ) %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+  fontsize(size = 12, part = "all") %>%
+  align(align = "center", j = c("Mean (SD)","Mean 95% CI","Median [IQR]","Min–Max")) %>%  # <-- removed "n" from alignment list
+  autofit() %>%
+  fit_to_width(max_width = 6.5)
+
+print(
+  read_docx() %>%
+    body_add_flextable(ft_ccu),
+  target = paste(path, "/Shvedovskii_Table_2_CCU_cannabis_consume.docx", sep="")
+)
+
+ft_ccu
+```
+
+## Between group comparison
+
+In line with Research Question 1, we compared the performance of the control group and the chronic cannabis users (CCU) group across several cognitive domains, based on the outcomes of the VLMT and Wechsler cognitive tests.
+
+VLMT (Verbaler Lern- und Merkfähigkeitstest) parameters included:
+
+* Total Learning Performance (A1 to A5): the cumulative score across five trials of an verbally presented 15-word list (List A), reflecting verbal learning efficiency;
+* Recall After Time Delay (A7): the number of words recalled from List A following an interference task (recall of List B) and a 30–40-minute delay, measuring long-term verbal memory;
+* Loss After Time Delay (A5–A7): the difference between performance on the fifth learning trial (A5) and delayed recall (A7), indicating memory retention loss over time;
+* Corrected Recognition Performance (A8–F): the number of correctly identified List A words minus false positives, based on a recognition list containing target items (List A), distractors (List B), and novel items, assessing recognition accuracy;
+
+Wechsler test:
+
+* Verbal Comprehension Index (W_VCI): a composite score representing acquired verbal knowledge and verbal reasoning, based on the “Vocabulary” and “Similarities” subtests from WISC or WAIS, depending on participant age;
+* Processing Speed Index (W_PS): a measure of the ability to quickly and accurately process visual information, derived from the “Coding” and “Symbol Search” subtests;
+* Working Memory Index (W_WMI): an index of attention and working memory, assessed through the “Digit Span” subtest (forward and backward repetition of number sequences);
+* Full-Scale IQ Score (W_GIQ): an overall standardized intelligence quotient calculated from all completed subtests, age-normed and reflecting general cognitive functioning.
+
+### VLMT test performance table
+
+```{r RQ1_VLMT_group_comparison}
+
+vlmt_vars <- c("SDg1_5", "Dg7", "Dg5_Dg7", "W_F")
+
+# Bonferroni-adjusted CI level for the 4 per-variable tests
+alpha <- 0.05
+n_tests <- length(vlmt_vars)        # 4
+conf_level <- 0.95   # 0.9875 (i.e., 98.75%)
+ci_label <- "HL shift [95% CI]"
+
+# ==== Descriptives ====
+vlmt_summary <- memdat_select %>%
+  filter(gr_final_3 %in% c(1,2)) %>%
+  group_by(gr_final_3) %>%
+  summarise(
+    across(
+      all_of(vlmt_vars),
+      list(
+        mean = ~round(mean(.x, na.rm = TRUE), 2),
+        sd   = ~round(sd(.x,   na.rm = TRUE), 2),
+        n    = ~sum(!is.na(.x))
+      ),
+      .names = "{.col}_{.fn}"
+    ),
+    .groups = "drop"
+  )
+
+# (optional) Shapiro—Wilk by group & variable
+vlmt_sw_test <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  dplyr::select(gr_final_3, all_of(vlmt_vars)) %>%
+  pivot_longer(cols = -gr_final_3, names_to = "variable", values_to = "value") %>%
+  group_by(gr_final_3, variable) %>%
+  summarise(
+    shapiro_stat = unname(shapiro.test(value)$statistic),
+    shapiro_p    = unname(shapiro.test(value)$p.value),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    shapiro_stat = round(shapiro_stat, 3),
+    shapiro_p    = round(shapiro_p, 3)
+  )
+
+# ==== PERMANOVA on the 4 VLMT variables ====
+vlmt_matrix_PERMANOVA <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  dplyr::select(all_of(vlmt_vars)) %>%
+  drop_na() %>%
+  as.matrix()
+
+group_vec <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  drop_na(all_of(vlmt_vars)) %>%
+  pull(gr_final_3)
+
+vlmt_permanova <- adonis2(vlmt_matrix_PERMANOVA ~ factor(group_vec), method = "euclidean") %>%
+  as.data.frame()
+
+# Extract PERMANOVA stats (column names vary by vegan version)
+F_col <- if ("F" %in% names(vlmt_permanova)) "F" else "F.Model"
+perm_F   <- as.numeric(vlmt_permanova[[F_col]][1])
+perm_R2  <- as.numeric(vlmt_permanova$R2[1])
+perm_p   <- as.numeric(vlmt_permanova$`Pr(>F)`[1])
+perm_df1 <- as.integer(vlmt_permanova$Df[1])   # model df
+perm_df2 <- as.integer(vlmt_permanova$Df[2])   # residual df
+perm_stat_str <- sprintf("F(%d,%d)=%.2f, R²=%.2f, p=%.3f",
+                         perm_df1, perm_df2, perm_F, perm_R2, perm_p)
+
+# ==== Wilcoxon per-variable (with HL shift + 95% CI) ====
+vlmt_wilcox_test <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  dplyr::select(gr_final_3, all_of(vlmt_vars)) %>%
+  tidyr::pivot_longer(cols = -gr_final_3, names_to = "variable", values_to = "value") %>%
+  filter(!is.na(value)) %>%
+  group_by(variable) %>%
+  summarise(
+    wilcox_obj = list(wilcox.test(value ~ gr_final_3,
+                                  exact = FALSE, conf.int = TRUE, conf.level = conf_level)),
+    n1 = sum(gr_final_3 == 1),
+    n2 = sum(gr_final_3 == 2),
+    .groups = "drop"
+  ) %>%
+mutate(
+    wilcox_W = map_dbl(wilcox_obj, ~ as.numeric(.x$statistic)),
+    wilcox_p = map_dbl(wilcox_obj, ~ .x$p.value),
+    # normal approx effect size r
+    mu    = (n1 * n2) / 2,
+    sigma = sqrt((n1 * n2 * (n1 + n2 + 1)) / 12),
+    z     = (wilcox_W - mu) / sigma,
+    r_rb  = z / sqrt(n1 + n2),
+    # HL shift & 95% CI
+    hl_shift = map_dbl(wilcox_obj, ~ if (!is.null(.x$estimate)) as.numeric(unname(.x$estimate)) else NA_real_),
+    ci_l     = map_dbl(wilcox_obj, ~ if (!is.null(.x$conf.int)) .x$conf.int[1] else NA_real_),
+    ci_u     = map_dbl(wilcox_obj, ~ if (!is.null(.x$conf.int)) .x$conf.int[2] else NA_real_),
+    # rounding/formatting
+    wilcox_W = round(wilcox_W, 1),
+    p_adj    = p.adjust(wilcox_p, method = "bonferroni"),
+    r_rb     = round(r_rb, 3),
+    hl_ci    = ifelse(is.na(ci_l), "—", sprintf("%.2f [%.2f; %.2f]", hl_shift, ci_l, ci_u))
+) %>%
+dplyr::select(variable, wilcox_W, p_adj, r_rb, hl_ci)
+
+# ==== Build final results table ====
+vlmt_res_tbl <- tibble::tribble(
+  ~Variable, ~controls, ~CCU, ~W, ~p_value, ~`HL shift [95% CI]`, ~effect, ~gen_perm,
+
+  "Total Learning Performance (A1-A5)",
+  sprintf("%.2f (%.2f)",
+          vlmt_summary$SDg1_5_mean[vlmt_summary$gr_final_3==1],
+          vlmt_summary$SDg1_5_sd[vlmt_summary$gr_final_3==1]),
+  sprintf("%.2f (%.2f)",
+          vlmt_summary$SDg1_5_mean[vlmt_summary$gr_final_3==2],
+          vlmt_summary$SDg1_5_sd[vlmt_summary$gr_final_3==2]),
+  as.character(vlmt_wilcox_test$wilcox_W[vlmt_wilcox_test$variable=="SDg1_5"]),
+  sprintf("%.3f", vlmt_wilcox_test$p_adj[vlmt_wilcox_test$variable=="SDg1_5"]),
+  vlmt_wilcox_test$hl_ci[vlmt_wilcox_test$variable=="SDg1_5"],
+  sprintf("%.3f", vlmt_wilcox_test$r_rb[vlmt_wilcox_test$variable=="SDg1_5"]),
+  perm_stat_str,
+
+  "Free Recall After Time Delay (A7)",
+  sprintf("%.2f (%.2f)",
+          vlmt_summary$Dg7_mean[vlmt_summary$gr_final_3==1],
+          vlmt_summary$Dg7_sd[vlmt_summary$gr_final_3==1]),
+  sprintf("%.2f (%.2f)",
+          vlmt_summary$Dg7_mean[vlmt_summary$gr_final_3==2],
+          vlmt_summary$Dg7_sd[vlmt_summary$gr_final_3==2]),
+  as.character(vlmt_wilcox_test$wilcox_W[vlmt_wilcox_test$variable=="Dg7"]),
+  sprintf("%.3f", vlmt_wilcox_test$p_adj[vlmt_wilcox_test$variable=="Dg7"]),
+  vlmt_wilcox_test$hl_ci[vlmt_wilcox_test$variable=="Dg7"],
+  sprintf("%.3f", vlmt_wilcox_test$r_rb[vlmt_wilcox_test$variable=="Dg7"]),
+  "",
+
+  "Loss After Time Delay (A5-A7)",
+  sprintf("%.2f (%.2f)",
+          vlmt_summary$Dg5_Dg7_mean[vlmt_summary$gr_final_3==1],
+          vlmt_summary$Dg5_Dg7_sd[vlmt_summary$gr_final_3==1]),
+  sprintf("%.2f (%.2f)",
+          vlmt_summary$Dg5_Dg7_mean[vlmt_summary$gr_final_3==2],
+          vlmt_summary$Dg5_Dg7_sd[vlmt_summary$gr_final_3==2]),
+  as.character(vlmt_wilcox_test$wilcox_W[vlmt_wilcox_test$variable=="Dg5_Dg7"]),
+  sprintf("%.3f", vlmt_wilcox_test$p_adj[vlmt_wilcox_test$variable=="Dg5_Dg7"]),
+  vlmt_wilcox_test$hl_ci[vlmt_wilcox_test$variable=="Dg5_Dg7"],
+  sprintf("%.3f", vlmt_wilcox_test$r_rb[vlmt_wilcox_test$variable=="Dg5_Dg7"]),
+  "",
+
+  "Corrected Recognition Performance (A8-F)",
+  sprintf("%.2f (%.2f)",
+          vlmt_summary$W_F_mean[vlmt_summary$gr_final_3==1],
+          vlmt_summary$W_F_sd[vlmt_summary$gr_final_3==1]),
+  sprintf("%.2f (%.2f)",
+          vlmt_summary$W_F_mean[vlmt_summary$gr_final_3==2],
+          vlmt_summary$W_F_sd[vlmt_summary$gr_final_3==2]),
+  as.character(vlmt_wilcox_test$wilcox_W[vlmt_wilcox_test$variable=="W_F"]),
+  sprintf("%.3f", vlmt_wilcox_test$p_adj[vlmt_wilcox_test$variable=="W_F"]),
+  vlmt_wilcox_test$hl_ci[vlmt_wilcox_test$variable=="W_F"],
+  sprintf("%.3f", vlmt_wilcox_test$r_rb[vlmt_wilcox_test$variable=="W_F"]),
+  ""
+)
+
+vlmt_gt <- vlmt_res_tbl %>%
+  gt() %>%
+  cols_label(
+    Variable = "Parameters",
+    controls = paste0("CC (n=", vlmt_summary$SDg1_5_n[vlmt_summary$gr_final_3==1], ")"),
+    CCU      = paste0("CCU (n=", vlmt_summary$SDg1_5_n[vlmt_summary$gr_final_3==2], ")"),
+    W        = "Wilcoxon W",
+    p_value  = "Wilcoxon p-value (Bonf. corr.)",
+    effect   = "Effect Size (r)",
+    `HL shift [95% CI]` = ci_label,
+    gen_perm = "PERMANOVA (F, R², p)"
+  )
+
+# ==== Word export (landscape page) ====
+ft_vlmt <- flextable(vlmt_res_tbl) %>%
+  set_header_labels(
+    Variable = "Parameters",
+    controls = paste0("CC (n=", vlmt_summary$SDg1_5_n[vlmt_summary$gr_final_3==1], ")"),
+    CCU      = paste0("CCU (n=", vlmt_summary$SDg1_5_n[vlmt_summary$gr_final_3==2], ")"),
+    W        = "Wilcoxon W",
+    p_value  = "Wilcoxon p-value (Bonf. corr.)",
+    effect   = "Effect Size (r)",
+    `HL shift [95% CI]` = ci_label,
+    gen_perm = "PERMANOVA (F, R², p)"
+  ) %>%
+  align(j = c("controls","CCU","W","p_value","effect","HL shift [95% CI]","gen_perm"),
+        align = "center", part = "body") %>%
+  bold(part = "header") %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+  fontsize(size = 12, part = "all") %>%
+  autofit() %>%
+  fit_to_width(max_width = 9)   # wider page in landscape
+
+# Landscape section properties
+ps_land <- prop_section(
+  page_size = page_size(orient = "landscape"),
+  type = "continuous"
+)
+ps_port <- prop_section(
+  page_size = page_size(orient = "portrait"),
+  type = "continuous"
+)
+
+doc <- read_docx()
+doc <- flextable::body_add_flextable(doc, value = ft_vlmt)     # add table
+
+print(
+  doc,
+  target = paste(path, "/Shvedovskii_Table_3_VLMT_results.docx", sep="")
+)
+ft_vlmt
+```
+
+### VLMT test performance plots
+```{r RQ1_VLMT_plots}
+#prepare vars in long format for facet view
+
+vlmt_group_labels <- c(paste0("CG n=", vlmt_summary$SDg1_5_n[vlmt_summary$gr_final_3==1]), paste0("CU n=", vlmt_summary$SDg1_5_n[vlmt_summary$gr_final_3==2]))
+
+vlmt_vars_facet <- c("SDg1_5", "Dg7", "Dg5_Dg7", "W_F")
+vlmt_long_facet <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  dplyr::select(gr_final_3, all_of(vlmt_vars_facet)) %>%
+  pivot_longer(cols = all_of(vlmt_vars_facet), names_to = "variable", values_to = "value") %>%
+  filter(!is.na(value)) %>%
+  mutate(
+    group_label = factor(gr_final_3, levels = c(1, 2), labels = vlmt_group_labels),
+    variable = factor(variable, levels = vlmt_vars_facet,
+                      labels = c("Total Learning Performance (A1-A5)", 
+                                 "Free Recall After Time Delay (A7)", 
+                                 "Loss After Time Delay (A5-A7)", 
+                                 "Corrected Recognition Performance (A8-F)"))
+  )
+#combined jitter
+ggplot(vlmt_long_facet, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  scale_color_manual(values = setNames(c("blue", "green"), vlmt_group_labels)) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(x = "Group", y = NULL) +
+  ggtitle("VLMT results") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        strip.text = element_text(face = "bold", size = 11))
+
+ggsave("VLMT_combined_jitter.png", width = 8, height = 6, dpi = 600)
+#combined dotplot
+ggplot(vlmt_long_facet, aes(x = group_label, y = value, fill = group_label)) +
+  geom_boxplot(width = 0.4, alpha = 0.2, outlier.shape = NA) +
+  geom_dotplot(
+    binaxis = 'y',
+    stackdir = 'center',
+    position = position_dodge(0.75),
+    dotsize = 0.6,
+    binwidth = 0.5, 
+    alpha = 0.8
+  ) +
+  scale_fill_manual(values = setNames(c("blue", "green"), vlmt_group_labels), name = "Group") +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(x = "Group", y = NULL, fill = "Group") +
+  #ggtitle("VLMT results", subtitle = "* p < 0.05   ** p < 0.01   *** p < 0.001") +
+  theme_minimal() +
+  theme(legend.position = "top",
+        strip.text = element_text(face = "bold", size = 11))
+ggsave("Shvedovskii_Fig_4_VLMT_combined_dotplot.png", width = 8, height = 6, dpi = 600)
+```
+
+```{r VLMT_memory_curve_performance}
+
+vlmt_curve_vars <- c("Dg1", "Dg5", "I", "Dg6", "Dg7", "W")
+
+vlmt_curve_vars_normative_vals <- c(
+  Dg1 = 6.46,
+  Dg5 = 12.39,
+  I   = 6.35,
+  Dg6 = 10.81,
+  Dg7 = 11.03,
+  W = 12.65)
+
+vlmt_normative_sds   <- c(
+  Dg1 = 1.99, 
+  Dg5 = 2.13, 
+  I = 1.85, 
+  Dg6 = 2.70, 
+  Dg7 = 2.82, 
+  W = 1.90)
+
+vlmt_means_by_group <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  mutate(across(all_of(vlmt_curve_vars), ~ suppressWarnings(as.numeric(.x)))) %>%
+  group_by(gr_final_3) %>%
+  summarise(across(all_of(vlmt_curve_vars), ~ mean(.x, na.rm = TRUE)), .groups = "drop") %>%
+  pivot_longer(cols = all_of(vlmt_curve_vars), names_to = "variable", values_to = "mean") %>%
+  mutate(Group = case_when(
+    gr_final_3 == 1 ~ "Clinical Controls",
+    gr_final_3 == 2 ~ "Chronic Cannabis Users",
+    TRUE ~ NA_character_
+  )) %>%
+  dplyr::select(Group, variable, mean)
+
+vlmt_norm_df <- tibble(
+  Group = "Normative",
+  variable = names(vlmt_curve_vars_normative_vals),
+  mean = as.numeric(vlmt_curve_vars_normative_vals)
+)
+
+plot_df <- bind_rows(vlmt_means_by_group, vlmt_norm_df) %>%
+  mutate(
+    variable = factor(variable, levels = vlmt_curve_vars),
+    Group = factor(Group, levels = c("Normative", "Clinical Controls", "Chronic Cannabis Users"))
+  )
+
+ggplot(plot_df, aes(x = variable, y = mean, group = Group, color = Group, linetype = Group)) +
+  geom_line(na.rm = TRUE) +
+  geom_point(size = 3.5, na.rm = TRUE) +
+  geom_vline(xintercept = 4.5, linetype = "dashed", color = "gray40") +
+  annotate("text", x = 4.5, y = 6.5, label = "Delay (30 min)", angle = 90, vjust = -0.5, hjust = 0, size = 4) +
+  scale_x_discrete(
+  drop = FALSE,
+  labels = c(
+    "Dg1"   = "A1",
+    "Dg5"   = "A5",
+    "I"     = "B1" ,
+    "Dg6"   = "A6",
+    "Dg7"   = "A7",
+    "W"     = "A8"
+  )
+) +
+  scale_y_continuous(breaks = seq(0, 15, by = 1)) +
+  labs(
+    title = "VLMT profile: Normative vs. Clinical Controls vs. Chronic Cannabis Users",
+    x = "VLMT variables",
+    y = "Mean score"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r VLMT_performance_curve_control_CCU}
+
+vlmt_curve_vars_clin_CCU <- c("Dg1","Dg2", "Dg3", "Dg4", "Dg5","I","Dg6","Dg7","W")
+
+vlmt_means_by_group_clin_CCU <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  mutate(across(all_of(vlmt_curve_vars_clin_CCU), ~ suppressWarnings(as.numeric(.x)))) %>%
+  group_by(gr_final_3) %>%
+  summarise(across(all_of(vlmt_curve_vars_clin_CCU), ~ mean(.x, na.rm = TRUE)), .groups = "drop") %>%
+  pivot_longer(cols = all_of(vlmt_curve_vars_clin_CCU), names_to = "variable", values_to = "mean") %>%
+  mutate(Group = case_when(
+    gr_final_3 == 1 ~ "Clinical Controls",
+    gr_final_3 == 2 ~ "Chronic Cannabis Users",
+    TRUE ~ NA_character_
+  )) %>%
+  dplyr::select(Group, variable, mean)
+
+vlmt_sds_by_group <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  mutate(across(all_of(vlmt_curve_vars_clin_CCU), ~ suppressWarnings(as.numeric(.x)))) %>%
+  group_by(gr_final_3) %>%
+  summarise(across(all_of(vlmt_curve_vars_clin_CCU), ~ sd(.x, na.rm = TRUE)), .groups = "drop") %>%
+  pivot_longer(cols = all_of(vlmt_curve_vars_clin_CCU), names_to = "variable", values_to = "sd") %>%
+  mutate(Group = case_when(
+    gr_final_3 == 1 ~ "Clinical Controls",
+    gr_final_3 == 2 ~ "Chronic Cannabis Users",
+    TRUE ~ NA_character_
+  )) %>%
+  dplyr::select(Group, variable, sd)
+
+plot_df <- vlmt_means_by_group_clin_CCU %>%
+  left_join(vlmt_sds_by_group, by = c("Group", "variable")) %>%
+  mutate(
+    variable = factor(variable, levels = vlmt_curve_vars_clin_CCU),
+    Group = factor(Group, levels = c("Normative", "Clinical Controls", "Chronic Cannabis Users"))
+  )
+
+norm_df <- tibble(
+  Group = "Normative",
+  variable = names(vlmt_curve_vars_normative_vals),
+  mean = as.numeric(vlmt_curve_vars_normative_vals),
+  sd = as.numeric(vlmt_normative_sds)
+) %>%
+  mutate(
+    variable = factor(variable, levels = vlmt_curve_vars_clin_CCU),
+    Group = factor(Group, levels = c("Normative", "Clinical Controls", "Chronic Cannabis Users"))
+  )
+
+vlmt_curve_plot_df <- bind_rows(plot_df, norm_df)
+
+position_dodge_val <- position_dodge(width = 0.4)
+
+
+ggplot(vlmt_curve_plot_df, aes(x = variable, y = mean, group = Group, color = Group)) +
+  geom_line(aes(group = Group), position = position_dodge_val, linewidth = 0.8) +
+  geom_point(aes(group = Group), position = position_dodge_val, size = 3.5) +
+  geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd, group = Group),
+                width = 0.15, position = position_dodge_val, linetype = "solid") +  
+  geom_vline(xintercept = 7.5, linetype = "dashed", color = "gray40") +
+  annotate("text", x = 7.5, y = 6.5, label = "Delay (30 min)", angle = 90, vjust = -0.5, hjust = 0, size = 4) +
+  scale_x_discrete(
+    drop = FALSE,
+    labels = c(
+      "Dg1" = "A1", "Dg2" = "A2", "Dg3" = "A3", "Dg4" = "A4",
+      "Dg5" = "A5", "I" = "B1", "Dg6" = "A6", "Dg7" = "A7", "W" = "A8"
+    )
+  ) +
+  scale_y_continuous(breaks = seq(0, 14, 2)) +
+  labs(
+    x = "Trials",
+    y = "Test Scores"
+  ) + 
+  scale_color_discrete(labels = c("Normative", "CC (n=29)", "CCU (n=13)")) +
+  theme_minimal(base_size = 12) +
+theme(
+  legend.position = "top",
+  panel.grid.major.x = element_blank(),
+  panel.grid.minor.x = element_blank()   
+)
+ggsave(paste(path, "/Shvedovskii_Fig_S1_VLMT_memory_curve.png", sep=""), width = 8, height = 6, dpi = 600)
+```
+
+### Wechsler test performance table
+```{r Wechsler_group_comparison}
+#means_sd
+IQ_vars <- c("W_VCI", "W_WMI", "W_PS", "W_GIQ")
+IQ_summary <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  group_by(gr_final_3) %>%
+  summarise(across(all_of(IQ_vars),
+                   list(mean = ~round(mean(., na.rm = TRUE), 2),
+                        sd   = ~round(sd(., na.rm = TRUE), 2),
+                        n    = ~sum(!is.na(.))),
+                   .names = "{.col}_{.fn}"))
+
+IQ_summary_long <- IQ_summary %>%
+  pivot_longer(cols = -gr_final_3, names_to = "variable", values_to = "value") %>%
+  pivot_wider(names_from = gr_final_3, values_from = value, names_prefix = "Group_")
+
+# Extract n per group
+W_n_controls <- IQ_summary %>% filter(gr_final_3 == 1) %>% pull(W_VCI_n)
+W_n_ccu <- IQ_summary %>% filter(gr_final_3 == 2) %>% pull(W_VCI_n)
+
+#normality check
+IQ_sw_test <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  dplyr::select(gr_final_3, all_of(IQ_vars)) %>%
+  pivot_longer(cols = -gr_final_3, names_to = "variable", values_to = "value") %>%
+  group_by(gr_final_3, variable) %>%
+  summarise(
+    shapiro_stat = round(shapiro.test(value)$statistic, 3),
+    shapiro_p    = round(shapiro.test(value)$p.value, 3),
+    .groups = "drop"
+  )
+
+#MANOVA (group factor influence)
+IQ_manova <- manova(cbind(W_VCI, W_WMI, W_PS, W_GIQ) ~ gr_final_3, data = memdat_select)
+
+IQ_manova_df <- as.data.frame(summary(IQ_manova, test = "Pillai")$stats) %>%
+  mutate(across(where(is.numeric), ~round(.x, 3))) %>%
+  mutate(Effect = rownames(summary(IQ_manova, test = "Pillai")$stats)) %>%
+  relocate(Effect)
+
+mani <- summary(IQ_manova, test = "Pillai")$stats
+pillai <- as.numeric(mani[1, "Pillai"])
+Fval   <- as.numeric(mani[1, "approx F"])
+numDf  <- as.integer(mani[1, "num Df"])
+denDf  <- as.integer(mani[1, "den Df"])
+manova_stats_str <- sprintf("Pillai=%.3f; F(%d,%d)=%.2f; p=%.3f",
+                            pillai, numDf, denDf, Fval, as.numeric(mani[1, "Pr(>F)"]))
+
+#t-tests
+W_VCI_ttest <- t.test(W_VCI ~ gr_final_3, data = memdat_select, var.equal = TRUE, conf.level = 0.95)
+W_WMI_ttest <- t.test(W_WMI ~ gr_final_3, data = memdat_select, var.equal = TRUE, conf.level = 0.95)
+W_PS_ttest  <- t.test(W_PS ~ gr_final_3, data = memdat_select, var.equal = TRUE, conf.level = 0.95)
+W_GIQ_ttest <- t.test(W_GIQ ~ gr_final_3, data = memdat_select, var.equal = TRUE, conf.level = 0.95)
+
+# Bonferroni-adjusted p-values across the four tests
+p_raw <- c(
+  W_VCI = W_VCI_ttest$p.value,
+  W_WMI = W_WMI_ttest$p.value,
+  W_PS  = W_PS_ttest$p.value,
+  W_GIQ = W_GIQ_ttest$p.value
+)
+p_adj <- p.adjust(p_raw, method = "bonferroni")
+
+# helpers for printing p-values and stars
+p_str <- function(p) ifelse(is.na(p), "—",
+                     ifelse(p < .001, "<0.001", sprintf("%.3f", p)))
+p_stars <- function(p) ifelse(is.na(p), "",
+                       ifelse(p < .001, "***",
+                         ifelse(p < .01, "**",
+                           ifelse(p < .05, "*", ""))))
+
+
+# helper to format "t = x.xx, df = y"
+fmt_tdf <- function(tt) sprintf("t=%.2f, df=%g", unname(tt$statistic), unname(tt$parameter))
+
+# t strings
+W_VCI_t_str <- fmt_tdf(W_VCI_ttest)
+W_WMI_t_str <- fmt_tdf(W_WMI_ttest)
+W_PS_t_str  <- fmt_tdf(W_PS_ttest)
+W_GIQ_t_str <- fmt_tdf(W_GIQ_ttest)
+
+# CCU − CC mean diff and 95% CI (t.test CI is group1−group2, so flip)
+mk_ci <- function(tt) {
+  ci <- unname(tt$conf.int)
+  diff_ccu_cc <- unname(tt$estimate[2] - tt$estimate[1])
+  ci_ccu_cc   <- c(-ci[2], -ci[1])
+  sprintf("%.2f [%.2f; %.2f]", diff_ccu_cc, ci_ccu_cc[1], ci_ccu_cc[2])
+}
+W_VCI_ci_str <- mk_ci(W_VCI_ttest)
+W_WMI_ci_str <- mk_ci(W_WMI_ttest)
+W_PS_ci_str  <- mk_ci(W_PS_ttest)
+W_GIQ_ci_str <- mk_ci(W_GIQ_ttest)
+
+#effect_size
+W_VCI_cohen <- cohens_d(W_VCI ~ gr_final_3, data = memdat_select)
+W_WMI_cohen <- cohens_d(W_WMI ~ gr_final_3, data = memdat_select)
+W_PS_cohen <-  cohens_d(W_PS ~ gr_final_3, data = memdat_select)
+W_GIQ_cohen <- cohens_d(W_GIQ ~ gr_final_3, data = memdat_select)
+
+#Results table
+iq_res_tbl <- tribble(
+  ~Variable, 
+  ~controls, 
+  ~CCU, 
+  ~t_value,
+  ~p_value,
+  ~ci_value,
+  ~effect,
+  ~manova_stats,
+
+  "Verbal Comprehension Index", 
+  paste0(round(IQ_summary$W_VCI_mean[IQ_summary$gr_final_3 == 1], 2), " (", round(IQ_summary$W_VCI_sd[IQ_summary$gr_final_3 == 1], 2), 
+  ")"),
+  paste0(IQ_summary$W_VCI_mean[IQ_summary$gr_final_3 == 2], " (", IQ_summary$W_VCI_sd[IQ_summary$gr_final_3 == 2], ")"),
+  W_VCI_t_str, 
+  paste0(p_str(p_adj["W_VCI"]), p_stars(p_adj["W_VCI"])),
+  W_VCI_ci_str,
+  paste0(round(W_VCI_cohen$effsize, 3)),
+  manova_stats_str,
+
+  "Working Memory Index",
+  paste0(round(IQ_summary$W_WMI_mean[IQ_summary$gr_final_3 == 1], 2), " (", round(IQ_summary$W_WMI_sd[IQ_summary$gr_final_3 == 1], 2), ")"),
+  paste0(round(IQ_summary$W_WMI_mean[IQ_summary$gr_final_3 == 2], 2), " (", round(IQ_summary$W_WMI_sd[IQ_summary$gr_final_3 == 2], 2), ")"),
+  W_WMI_t_str,
+  paste0(p_str(p_adj["W_WMI"]), p_stars(p_adj["W_WMI"])),
+  W_WMI_ci_str,
+  paste0(round(W_WMI_cohen$effsize, 3)),
+  "",
+  
+  "Processing Speed Index", 
+  paste0(round(IQ_summary$W_PS_mean[IQ_summary$gr_final_3 == 1], 2), " (", round(IQ_summary$W_PS_sd[IQ_summary$gr_final_3 == 1], 2), ")"),
+  paste0(round(IQ_summary$W_PS_mean[IQ_summary$gr_final_3 == 2], 2), " (", round(IQ_summary$W_PS_sd[IQ_summary$gr_final_3 == 2], 2), ")"),
+  W_PS_t_str,
+  paste0(p_str(p_adj["W_PS"]),  p_stars(p_adj["W_PS"])),
+  W_PS_ci_str,
+  paste0(round(W_PS_cohen$effsize, 3)),
+  "",
+
+  "General Intellectual Quotient", 
+  paste0(round(IQ_summary$W_GIQ_mean[IQ_summary$gr_final_3 == 1], 2), " (", round(IQ_summary$W_GIQ_sd[IQ_summary$gr_final_3 == 1], 2), ")"),
+  paste0(round(IQ_summary$W_GIQ_mean[IQ_summary$gr_final_3 == 2], 2), " (", round(IQ_summary$W_GIQ_sd[IQ_summary$gr_final_3 == 2], 2), ")"),
+  W_GIQ_t_str,
+  paste0(p_str(p_adj["W_GIQ"]), p_stars(p_adj["W_GIQ"])),
+  W_GIQ_ci_str,
+  paste0(round(W_GIQ_cohen$effsize, 3)),
+  "",
+)
+
+tbl <- iq_res_tbl %>%
+  gt() %>%
+  cols_label(
+    Variable = "Parameters",
+    controls = paste0("CG n=", W_n_controls),
+    CCU = paste0("CU n=", W_n_ccu),
+    p_value = "p-value (bonf. corr)",
+    effect = "d-Cohen",
+    t_value = "t-test",
+    ci_value = "Mean diff (CCU - CC) [95% CI]",
+    manova_stats = "MANOVA (Pillai, F, df, p)"
+  )
+  
+
+ft_wechsler <- flextable(iq_res_tbl) %>%
+  set_header_labels(
+    Variable = "Parameters",
+    controls = paste0("CU (n=", W_n_controls, ")"),
+    CCU      = paste0("CG (n=", W_n_ccu, ")"),
+    p_value  = "p-value (Bonf. corr.)",
+    effect   = "Cohen's d",
+    t_value  = "t (df)",
+    ci_value = "Mean diff (CCU − CC) [95% CI]",
+    manova_stats = "MANOVA (Pillai, F, df, p)"
+  ) %>%
+  align(j = c("controls","CCU","p_value","effect","t_value","ci_value","manova_stats"), align = "center", part = "body") %>%
+  bold(part = "header") %>%
+  font(fontname = "Times New Roman", part = "all") %>%
+  fontsize(size = 12, part = "all") %>%
+  autofit()
+
+doc <- read_docx()
+doc <- flextable::body_add_flextable(doc, ft_wechsler)
+
+print(doc,
+  target = paste(path, "/Shvedovskii_Table_4_Wechsler_results.docx", sep=""))
+
+tbl
+
+```
+
+### Wechsler test plots
+```{r Wechsler_group_plots}
+# Create dynamic group labels
+IQ_group_labels <- c(paste0("CC n=", W_n_controls), paste0("CCU n=", W_n_ccu))
+#prepare vars in long format for facet view
+IQ_vars_facet <- c("W_VCI", "W_WMI", "W_PS", "W_GIQ")
+IQ_long_facet <- memdat_select %>%
+  filter(gr_final_3 %in% c(1, 2)) %>%
+  dplyr::select(gr_final_3, all_of(IQ_vars_facet)) %>%
+  pivot_longer(cols = all_of(IQ_vars_facet), names_to = "variable", values_to = "value") %>%
+  filter(!is.na(value)) %>%
+  mutate(
+    group_label = factor(gr_final_3, levels = c(1, 2), labels = IQ_group_labels),
+    variable = factor(variable, levels = IQ_vars_facet,
+                      labels = c("Verbal Comprehension Index (W_VCI)", "Working Memory Index (W_WMI)", "Processing Speed Index (W_PS)", "General IQ score (W_GIQ) (p=0.004**)"))
+  )
+
+#combined jitter
+ggplot(IQ_long_facet, aes(x = group_label, y = value, color = group_label)) +
+  geom_jitter(width = 0.2, size = 2, alpha = 0.7) +
+  scale_color_manual(values = setNames(c("blue", "green"), IQ_group_labels)) +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(x = "Group", y = NULL) +
+  ggtitle ("Wechsler test results") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        strip.text = element_text(face = "bold", size = 11))
+
+ggsave("IQ_combined_jitter.png", width = 8, height = 6, dpi = 600)
+
+#combined dotplot
+ggplot(IQ_long_facet, aes(x = group_label, y = value, fill = group_label)) +
+  geom_boxplot(width = 0.4, alpha = 0.2, outlier.shape = NA) +
+  geom_dotplot(
+    binaxis = 'y',
+    stackdir = 'center',
+    position = position_dodge(0.75),
+    dotsize = 0.6, 
+    binwidth = 0.5,
+    alpha = 0.8
+  ) +
+  scale_fill_manual(values = setNames(c("blue", "green"), IQ_group_labels), name = "Group") +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(x = "Group", y = NULL, fill = "Group") +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold", size = 11),
+    legend.position = "top"
+  )
+
+ggsave("Shvedovskii_Fig_5_Wechsler_Group_difference.png", width = 8, height = 6, dpi = 600)
+
+```
+
+```{r RQ1_WECHSLER_TEST_comparisons_v2}
+# vars and summaries
+IQ_vars <- c("W_VCI", "W_WMI", "W_PS", "W_GIQ")
+IQ_summary <- memdat_select %>%
+  dplyr::filter(gr_final_3 %in% c(1, 2)) %>%
+  dplyr::group_by(gr_final_3) %>%
+  dplyr::summarise(across(all_of(IQ_vars),
+                   list(mean = ~mean(., na.rm = TRUE),
+                        sd   = ~sd(.,   na.rm = TRUE),
+                        n    = ~sum(!is.na(.))),
+                   .names = "{.col}_{.fn}"),
+                   .groups = "drop")
+
+p_str   <- function(p) ifelse(is.na(p), "—",
+                       ifelse(p < .001, "<0.001", sprintf("%.3f", p)))
+p_stars <- function(p) ifelse(is.na(p), "",
+                       ifelse(p < .001, "***",
+                         ifelse(p < .01, "**",
+                           ifelse(p < .05, "*", ""))))
+
+# Ns shown in headers (use VCI counts; adjust if you prefer per-row n)
+W_n_controls <- IQ_summary %>% dplyr::filter(gr_final_3 == 1) %>% dplyr::pull(W_VCI_n)
+W_n_ccu      <- IQ_summary %>% dplyr::filter(gr_final_3 == 2) %>% dplyr::pull(W_VCI_n)
+
+# --- MANOVA (Pillai) ---
+IQ_manova   <- manova(cbind(W_VCI, W_WMI, W_PS, W_GIQ) ~ gr_final_3, data = memdat_select)
+mani         <- summary(IQ_manova, test = "Pillai")$stats
+colnames(mani) <- sub("\\s+", " ", colnames(mani))  # normalize names
+pillai   <- as.numeric(mani[1, "Pillai"])
+Fval     <- as.numeric(mani[1, "approx F"])
+numDf    <- as.integer(mani[1, "num Df"])
+denDf    <- as.integer(mani[1, "den Df"])
+p_mano   <- as.numeric(mani[1, "Pr(>F)"])
+manova_str <- sprintf("Pillai=%.3f; F(%d,%d)=%.2f; p=%s%s",
+                      pillai, numDf, denDf, Fval, p_str(p_mano), p_stars(p_mano))
+
+# --- Single tests (Welch/equal-var as you prefer). Keep var.equal=TRUE to match your earlier code ---
+tt_list <- list(
+  W_VCI = t.test(W_VCI ~ gr_final_3, data = memdat_select, var.equal = TRUE, conf.int = TRUE),
+  W_WMI = t.test(W_WMI ~ gr_final_3, data = memdat_select, var.equal = TRUE, conf.int = TRUE),
+  W_PS  = t.test(W_PS  ~ gr_final_3, data = memdat_select, var.equal = TRUE, conf.int = TRUE),
+  W_GIQ = t.test(W_GIQ ~ gr_final_3, data = memdat_select, var.equal = TRUE, conf.int = TRUE)
+)
+
+# Bonferroni across the four single tests
+p_raw  <- vapply(tt_list, function(tt) tt$p.value, numeric(1))
+p_adj  <- p.adjust(p_raw, method = "bonferroni")
+
+
+
+# Cohen's d (effectsize package)
+d_list <- list(
+  W_VCI = effectsize::cohens_d(W_VCI ~ gr_final_3, data = memdat_select),
+  W_WMI = effectsize::cohens_d(W_WMI ~ gr_final_3, data = memdat_select),
+  W_PS  = effectsize::cohens_d(W_PS  ~ gr_final_3, data = memdat_select),
+  W_GIQ = effectsize::cohens_d(W_GIQ ~ gr_final_3, data = memdat_select)
+)
+
+# helper: row builder
+mk_row <- function(var, label) {
+  # means/sds
+  m1 <- IQ_summary[[sprintf("%s_mean", var)]][IQ_summary$gr_final_3 == 1]
+  s1 <- IQ_summary[[sprintf("%s_sd",   var)]][IQ_summary$gr_final_3 == 1]
+  m2 <- IQ_summary[[sprintf("%s_mean", var)]][IQ_summary$gr_final_3 == 2]
+  s2 <- IQ_summary[[sprintf("%s_sd",   var)]][IQ_summary$gr_final_3 == 2]
+
+  # t-test bits
+  tt  <- tt_list[[var]]
+  tval <- unname(tt$statistic)
+  df   <- unname(tt$parameter)
+  # tt$conf.int is for (group 1 − group 2). We present (CCU − CC):
+  ci_g1_minus_g2 <- unname(tt$conf.int)
+  ci_ccu_minus_cc <- c(-ci_g1_minus_g2[2], -ci_g1_minus_g2[1])
+  diff_ccu_cc     <- unname(tt$estimate[2] - tt$estimate[1])
+
+  # effect size
+  d <- d_list[[var]]$Cohens_d
+
+  tibble::tibble(
+    Variable     = label,
+    controls     = sprintf("%.2f (%.2f)", m1, s1),
+    CCU          = sprintf("%.2f (%.2f)", m2, s2),
+    `t (df)`     = sprintf("%.2f (%g)", tval, df),
+    `p-value (Bonf.)` = paste0(p_str(p_adj[[var]]), p_stars(p_adj[[var]])),
+    `Cohen's d`  = sprintf("%.2f", d),
+    `Mean diff (CCU − CC) [95% CI]` =
+      sprintf("%.2f [%.2f; %.2f]", diff_ccu_cc, ci_ccu_minus_cc[1], ci_ccu_minus_cc[2]),
+    `MANOVA (Pillai, F, p)` = ifelse(var == "W_VCI", manova_str, "")  # put MANOVA line once
+  )
+}
+
+iq_res_tbl <- dplyr::bind_rows(
+  mk_row("W_VCI", "Verbal Comprehension Index"),
+  mk_row("W_WMI", "Working Memory Index"),
+  mk_row("W_PS",  "Processing Speed Index"),
+  mk_row("W_GIQ", "General Intellectual Quotient")
+)
+
+# --- replace NAs with an em dash for printing ---
+iq_res_tbl_print <- iq_res_tbl %>%
+  dplyr::mutate(across(everything(), ~ ifelse(is.na(.), "—", as.character(.))))
+
+# ---- Word export (Times New Roman, 12pt, landscape) ----
+ft_iq <- flextable::flextable(iq_res_tbl_print) %>%
+  flextable::set_header_labels(
+    Variable = "Parameters",
+    controls = paste0("CC (n=", W_n_controls, ")"),
+    CCU      = paste0("CCU (n=", W_n_ccu, ")"),
+    `t (df)` = "t (df)",
+    `p-value (Bonf.)` = "p-value (Bonf. corr.)",
+    `Cohen's d` = "Cohen's d",
+    `Mean diff (CCU − CC) [95% CI]` = "Mean diff (CCU − CC) [95% CI]",
+    `MANOVA (Pillai, F, p)` = "MANOVA (Pillai, F, p)"
+  ) %>%
+  flextable::align(
+    j = c("controls","CCU","t (df)","p-value (Bonf.)","Cohen's d",
+          "Mean diff (CCU − CC) [95% CI]","MANOVA (Pillai, F, p)"),
+    align = "center", part = "body"
+  ) %>%
+  flextable::bold(part = "header") %>%
+  flextable::font(fontname = "Times New Roman", part = "all") %>%
+  flextable::fontsize(size = 12, part = "all") %>%
+  flextable::autofit() %>%
+  flextable::fit_to_width(max_width = 9)
+
+doc <- officer::read_docx()
+doc <- flextable::body_add_flextable(doc, ft_iq)  
+
+print(
+  doc,
+  target = paste(path, "/Shvedovskii_Table_4_Wechsler_results2.docx", sep=""))
+
+ft_iq
+
+```
+
+```{r WISC composite scores group profiles}
+WISC_profile_vars <- c("WISC_Sv", "WISC_Vr_V", "WISC_FS", "WISC_Ag", "WISC_Vg") 
+
+WISC_means <- memdat_select %>% 
+  filter(gr_final_3 %in% c(1, 2)) %>% 
+  mutate(across(all_of(WISC_profile_vars), ~ suppressWarnings(as.numeric(.x)))) %>%
+  group_by(gr_final_3) %>% 
+  summarise(across(all_of(WISC_profile_vars), ~ mean(.x, na.rm = TRUE)), .groups = "drop") %>%
+  pivot_longer(cols = all_of(WISC_profile_vars), names_to = "variable", values_to = "mean") %>%
+  mutate(Group = case_when(
+    gr_final_3 == 1 ~ "Clinical Controls", 
+    gr_final_3 == 2 ~ "Chronic Cannabis Users", 
+    TRUE ~ NA_character_ )) %>% 
+  dplyr::select(Group, variable, mean) 
+
+WISC_sd_df <- memdat_select %>% 
+  filter(gr_final_3 %in% c(1, 2)) %>% 
+  mutate(across(all_of(WISC_profile_vars), ~ suppressWarnings(as.numeric(.x)))) %>%
+  group_by(gr_final_3) %>% 
+  summarise(across(all_of(WISC_profile_vars), ~ sd(.x, na.rm = TRUE)), .groups = "drop") %>%
+  pivot_longer(cols = all_of(WISC_profile_vars), names_to = "variable", values_to = "sd") %>%
+  mutate(Group = case_when(
+    gr_final_3 == 1 ~ "Clinical Controls", 
+    gr_final_3 == 2 ~ "Chronic Cannabis Users", 
+    TRUE ~ NA_character_ )) %>% 
+  dplyr::select(Group, variable, sd)
+
+WISC_plot_df <- left_join(WISC_means, WISC_sd_df, by = c("Group", "variable")) %>% 
+  mutate(
+      sd = ifelse(is.na(sd) | sd == 0, 0.05, sd),
+    variable = factor(variable, levels = WISC_profile_vars), 
+    Group = factor(Group, levels = c("Clinical Controls","Chronic Cannabis Users")) 
+  )
+
+
+x_labels <- c("WISC_Sv" = "VCI", "WISC_Vr_V" = "VSI", "WISC_FS" = "FR", "WISC_Ag" = "WMI",  "WISC_Vg" = "PS")
+
+
+dodge <- position_dodge(width = 0.4)
+
+ggplot(WISC_plot_df, aes(x = variable, y = mean, group = Group, color = Group, linetype = Group)) + 
+  geom_line(na.rm = TRUE, linewidth = 1, position = dodge) + 
+  geom_point(size = 4, na.rm = TRUE, position = dodge) + 
+  geom_errorbar(aes(ymin = mean - sd, ymax = mean + sd), width = 0.2, na.rm = TRUE, position = dodge) +
+  scale_x_discrete(labels = x_labels) + 
+  scale_y_continuous(breaks = seq(80, 120, 10), limits = c(60, 140)) + 
+  labs(
+    x = "WISC indexes", 
+    y = "Standardised Score") + 
+  scale_color_discrete(labels = c("CG (n=10)", "CU (n=22)")) +
+  guides(linetype = "none") + 
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "top", 
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank()
+  )
+
+ggsave("Shvedovskii_Fig_S2_WISC_profile_plot.png", width = 10, height = 6, dpi = 300)
+```
+
+## The influence of the substance anamnesis factors
+
+For the final research question, we selected variables that are theoretically relevant and potentially predictive of cognitive decline in chronic cannabis users.
+
+We build two types of regression models
+
+1) Model type 1 "traditional", which included the following group of variables:
+
+* Long-term factor - Age of first use (C_FUA);
+* Short-term factor - Consumption days in last month (C_CD_M), Average Consumption Days in the last year (but not in last month) (C_CD_Y) ; 
+* Volume factor - Amount of Cannabis use per day in last month (C_APD_M), Amount of Cannabis use per day in average month last year (C_APD_Y);
+
+2) Model type 2 "cumulative"
+
+* Long-term factor - Duration of use (C_DU)
+* Exposure factor - Cannabis Exposure in last month (C_EX_M) or Cannabis Exposure in average month in last year (C_EX_Y).
+
+These models further were checked for each of the cognitive variables (linear or robust regression models)
+
+```{r RQ3_z_standartization}
+#scores standartization (z-scores) and CCU group dataset subsection
+memdat_ccu <- memdat_select %>%
+  filter(gr_final_3 != 1) %>% 
+  mutate(across(
+    c(SDg1_5, Dg7, Dg5_Dg7, W_F, C_FUA, C_CD_M, C_APD_M, C_CD_Y, C_APD_Y, C_EX_M, C_EX_Y, C_DU),
+    ~ scale(.)[, 1],
+    .names = "z_{.col}"
+  ))
+write_xlsx(memdat_ccu, paste(path, "/memdat_ccu.xlsx", sep=""))
+
+```
+
+##building linear regression models for Type 1 and Type 2 models
+```{r RQ3_linear_RM_Check_1}
+#model1
+VLMT_TLP_lm <- lm(z_SDg1_5 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu)
+VLMT_RATD_lm <- lm(z_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu)
+VLMT_LATD_lm <- lm(z_Dg5_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu)
+VLMT_WF_lm <- lm(z_W_F ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu)
+W_VCI_lm <- lm(W_VCI ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu)
+W_WMI_lm <- lm(W_WMI ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu)
+W_PS_lm <- lm(W_PS ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu)
+W_GIQ_lm <- lm(W_GIQ ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu)
+#model2
+VLMT_TLP_lm_add <- lm(z_SDg1_5 ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu)
+VLMT_RATD_lm_add <- lm(z_Dg7 ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu)
+VLMT_LATD_lm_add <- lm(z_Dg5_Dg7 ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu)
+VLMT_WF_lm_add <- lm(z_W_F ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu)
+W_VCI_lm_add <- lm(W_VCI ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu)
+W_WMI_lm_add <- lm(W_WMI ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu)
+W_PS_lm_add <- lm(W_PS ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu)
+W_GIQ_lm_add <- lm(W_GIQ ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu)
+```
+
+##check the possibility to apply LRM or to change with robust models
+```{r RQ_3_LRM_assumption_check}
+#make a list of all models
+lm_models <- list(
+  VLMT_TLP_model1_lm = lm(z_SDg1_5 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu),
+  VLMT_RATD_model1_lm = lm(z_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu),
+  VLMT_LATD_model1_lm = lm(z_Dg5_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu),
+  VLMT_WF_model1_lm = lm(z_W_F ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu),
+  
+  W_VCI_model1_lm = lm(W_VCI ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu),
+  W_WMI_model1_lm = lm(W_WMI ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu),
+  W_PS_model1_lm = lm(W_PS ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu),
+  W_GIQ_model1_lm = lm(W_GIQ ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data=memdat_ccu),
+  
+  VLMT_TLP_model2_lm = lm(z_SDg1_5 ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu),
+  VLMT_RATD_model2_lm = lm(z_Dg7 ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu),
+  VLMT_LATD_model2_lm = lm(z_Dg5_Dg7 ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu),
+  VLMT_WF_model2_lm = lm(z_W_F ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu),
+  
+  W_VCI_model2_lm = lm(W_VCI ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu),
+  W_WMI_model2_lm = lm(W_WMI ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu),
+  W_PS_model2_lm = lm(W_PS ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu),
+  W_GIQ_model2_lm = lm(W_GIQ ~ z_C_EX_M + z_C_EX_Y + z_C_DU, data=memdat_ccu)
+)
+
+# Function to check linear regression assumptions: linearity & homoscedasticity by plots, normality of residuals by qq plot, Breusch-Pagan test = test for Homoscedasticity
+
+lm_check_assumptions <- function(model, model_name) {
+  cat("\n\n---", model_name, "---\n")
+  
+  # Linearity & Homoscedasticity
+  plot(fitted(model), residuals(model), main=paste("Residuals vs Fitted:", model_name),
+       xlab="Fitted values", ylab="Residuals")
+  abline(h=0, col="red")
+
+  # Normality of residuals
+  qqnorm(residuals(model), main=paste("Q-Q Plot:", model_name))
+  qqline(residuals(model), col="red")
+  
+  cat("Shapiro-Wilk test:\n")
+  print(shapiro.test(residuals(model)))
+  
+  # Homoscedasticity (Breusch-Pagan test)
+  cat("Breusch-Pagan test:\n")
+  print(bptest(model))
+  
+  # Multicollinearity (VIF)
+  if (length(coef(model)) > 2) {
+    cat("VIF:\n")
+    print(vif(model))
+  } else {
+    cat("VIF: Skipped (only one predictor)\n")
+  }
+}
+# Run diagnostics for each model
+par(mfrow=c(2,2))  # for plotting
+for (name in names(lm_models)) {
+  lm_check_assumptions(lm_models[[name]], name)
+}
+
+# Function for Shapiro + BP tests with formatting
+extract_model_diagnostics_starred <- function(model, name) {
+  shapiro_p <- shapiro.test(residuals(model))$p.value
+  bp_p <- bptest(model)$p.value
+  
+  tibble(
+    Model = name,
+    `Shapiro-Wilk p` = ifelse(shapiro_p > 0.05, 
+                              paste0(format(round(shapiro_p, 3), nsmall = 3), " *"), 
+                              format(round(shapiro_p, 3), nsmall = 3)),
+    `BP test p` = format(round(bp_p, 3), nsmall = 3),
+    `Recommended model` = ifelse(shapiro_p > 0.05 & bp_p > 0.05, "Linear", "Robust")
+  )
+}
+
+label_map <- c(
+  VLMT_TLP_model1_lm  = "A1-A5 Model 1",
+  VLMT_RATD_model1_lm = "A7 Model 1",
+  VLMT_LATD_model1_lm = "A5-A7 Model 1",
+  VLMT_WF_model1_lm   = "A8-F Model 1",
+  W_VCI_model1_lm     = "W_VCI Model 1",
+  W_WMI_model1_lm     = "W_WMI Model 1",
+  W_PS_model1_lm      = "W_PS Model 1",
+  W_GIQ_model1_lm     = "W_GIQ Model 1",
+  VLMT_TLP_model2_lm  = "A1-A5 Model 2",
+  VLMT_RATD_model2_lm = "A7 Model 2",
+  VLMT_LATD_model2_lm = "A5-A7 Model 2",
+  VLMT_WF_model2_lm   = "A8-F Model 2",
+  W_VCI_model2_lm     = "W_VCI Model 2",
+  W_WMI_model2_lm     = "W_WMI Model 2",
+  W_PS_model2_lm      = "W_PS Model 2",
+  W_GIQ_model2_lm     = "W_GIQ Model 2"
+)
+
+diagnostic_table <- purrr::map2_dfr(lm_models, names(lm_models), extract_model_diagnostics_starred) %>%
+  dplyr::mutate(Model = dplyr::recode(Model, !!!label_map))
+
+
+# Render the table
+diagnostic_table %>%
+  kbl(caption = "Linear Regression Diagnostics Summary (n = 31)",
+      align = "lccc",
+      escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE,
+                position = "center")
+
+ft_diag <- flextable::flextable(diagnostic_table) %>%
+  flextable::set_header_labels(
+    Model               = "Model",
+    `Shapiro-Wilk p`    = "Shapiro–Wilk p",
+    `BP test p`         = "Breusch–Pagan p",
+    `Recommended model` = "Recommended model"
+  ) %>%
+  flextable::font(fontname = "Times New Roman", part = "all") %>%
+  flextable::fontsize(size = 12, part = "all") %>%
+  flextable::autofit() %>%
+  flextable::fit_to_width(max_width = 6.5)
+
+print(
+  officer::read_docx() %>%
+    flextable::body_add_flextable(ft_diag),
+  target = paste(path, "/Shvedovskii_Table_S3_Regression_Assumption_Check.docx", sep=""))
+
+
+```
+
+
+After checking the regressions following models were selected for the application of robust regression:
+
+Model type 1
+
+* VLMT A1-A5
+* VLMT A8-F
+
+###Robust regressions for the selected test
+```{r RQ3_robust_RM}
+VLMT_TLP_model1_robust <- rlm(z_SDg1_5 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data = memdat_ccu)
+VLMT_WF_model1_robust <- rlm(z_W_F ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data = memdat_ccu)
+
+# Function to tidy coeftest output
+tidy_rlm <- function(model) {
+  coefs <- coeftest(model, vcov = vcovHC(model, type = "HC1"))
+  data.frame(
+    term = rownames(coefs),
+    estimate = coefs[, 1],
+    std.error = coefs[, 2],
+    statistic = coefs[, 3],
+    p.value = coefs[, 4],
+    row.names = NULL
+  )
+}
+
+term_labels <- c(
+  "(Intercept)" = "Intercept",
+  "z_C_FUA"     = "Age of first use (z)",
+  "z_C_CD_M"    = "Days of Consume (last month, z)",
+  "z_C_APD_M"   = "Amount per day (g) (last month, z)",
+  "z_C_CD_Y"    = "Days of Consume (avg. month in last year, z)",
+  "z_C_APD_Y"   = "Amount per day (g) (avg. month in last year, z)"
+)
+
+# Table 1: VLMT_TLP_model1_robust
+table_VLMT_TLP_model1_robust <- tidy_rlm(VLMT_TLP_model1_robust) %>% 
+  dplyr::mutate(term = dplyr::recode(term, !!!term_labels)) %>%  
+  dplyr::rename(                                              
+    Predictor = term,
+    Beta      = estimate,
+    SE        = std.error,
+    t         = statistic,
+    p         = p.value
+  ) %>%
+  dplyr::mutate(
+    dplyr::across(c(Beta, SE, t), ~ round(., 2)),
+    p = dplyr::case_when(
+      is.na(p)        ~ "—",
+      p < .001        ~ "<0.001",
+      TRUE            ~ sprintf("%.3f", p)
+    )
+  )
+kable(table_VLMT_TLP_model1_robust, digits = 2, caption = "Model 1 Robust Regression for Total Learning Performance (VLMT)")
+
+# Table 2: VLMT_WF_model1_robust
+table_VLMT_WF_model1_robust <- tidy_rlm(VLMT_WF_model1_robust) %>% 
+  dplyr::mutate(term = dplyr::recode(term, !!!term_labels)) %>%  
+  dplyr::rename(                                       
+    Predictor = term,
+    Beta      = estimate,
+    SE        = std.error,
+    t         = statistic,
+    p         = p.value
+  ) %>%
+  dplyr::mutate(
+    dplyr::across(c(Beta, SE, t), ~ round(., 2)),
+    p = dplyr::case_when(
+      is.na(p)        ~ "—",
+      p < .001        ~ "<0.001",
+      TRUE            ~ sprintf("%.3f", p)
+    )
+  )
+kable(table_VLMT_WF_model1_robust, digits = 2, caption = "Model 1 Robust Regression for Corrected Recognition Performance (VLMT)")
+
+# build flextables
+ft_tlp <- flextable::flextable(table_VLMT_TLP_model1_robust) %>%
+  flextable::set_header_labels(
+    Predictor = "Predictor",
+    Beta      = "β",
+    SE        = "SE",
+    t         = "t",
+    p         = "p"
+  ) %>%
+  flextable::align(j = c("Beta","SE","t","p"), align = "center", part = "body") %>%
+  flextable::bold(part = "header") %>%
+  flextable::font(fontname = "Times New Roman", part = "all") %>%
+  flextable::fontsize(size = 12, part = "all") %>%
+  flextable::autofit()
+
+ft_wf <- flextable::flextable(table_VLMT_WF_model1_robust) %>%
+  flextable::set_header_labels(
+    Predictor = "Predictor",
+    Beta      = "β",
+    SE        = "SE",
+    t         = "t",
+    p         = "p"
+  ) %>%
+  flextable::align(j = c("Beta","SE","t","p"), align = "center", part = "body") %>%
+  flextable::bold(part = "header") %>%
+  flextable::font(fontname = "Times New Roman", part = "all") %>%
+  flextable::fontsize(size = 12, part = "all") %>%
+  flextable::autofit()
+
+# export to Word
+doc <- officer::read_docx()
+doc <- flextable::body_add_flextable(doc, ft_tlp)
+doc <- flextable::body_add_flextable(doc, ft_wf)
+
+print(
+  doc,
+  target = paste(path, "/Shvedovskii_Table_5_6_VLMT_Robust_Models.docx", sep=""))
+
+nobs(VLMT_TLP_model1_robust)
+nobs(VLMT_WF_model1_robust)
+
+```
+
+Linear Regression were applied to these parameters for Model 1 and 2
+
+Model 1:
+* VLMT A7
+* VLMT A5-A7 
+
+* W_VCI 
+* W_PS
+* W_WMI
+* W_FSIQ
+
+Model 2:
+* VLMT_TLP_lm_add
+* VLMT_RATD_lm_add
+* VLMT_LATD_lm_add
+* VLMT_WF_lm_add
+
+* W_VCI_lm_add
+* W_WMI_lm_add
+* W_PS_lm_add
+* W_GIQ_lm_add 
+
+
+```{r RQ3_Model_1_LRM_VLMT, results='asis'}
+VLMT_RATD_model1_lm <- lm(z_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data = memdat_ccu)
+VLMT_LATD_model1_lm <- lm(z_Dg5_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y, data = memdat_ccu)
+
+tab_model(
+  VLMT_RATD_model1_lm,
+  VLMT_LATD_model1_lm,
+  show.std = TRUE,
+  show.ci = FALSE,
+  dv.labels = c(
+    "Free Recall After Time Delay (A7)",
+    "Loss After Time Delay (A5-A7) (VLMT)"
+  ),
+  title = "Model 1 Linear Regression Results for Free Recall After Time Delay (A7) and Loss After Time Delay (A5-A7) (VLMT)"
+)
+
+```
+
+```{r RQ3_Model_1_LRM_Wechsler, results='asis'}
+tab_model(
+  W_VCI_lm,
+  W_WMI_lm,
+  W_PS_lm,
+  W_GIQ_lm,
+  show.std = TRUE,
+  show.ci = FALSE,
+  dv.labels = c(
+    "Verbal Comprehension Index (W_VCI)",
+    "Working Memory Index (W_WMI)",
+    "Processing Speed Index (W_PS)",
+    "General IQ Index (W_GIQ)"
+  ),
+  title = "Model 1 Linear Regression for Wechsler Test Outcomes"
+)
+
+```
+
+```{r RQ3_Model2_LRM_VLMT, results='asis'}
+tab_model(
+  VLMT_TLP_lm_add,
+  VLMT_RATD_lm_add,
+  VLMT_LATD_lm_add,
+  VLMT_WF_lm_add,
+  show.std = TRUE,
+  show.ci = FALSE,
+  dv.labels = c(
+    "TLP: Total Learning Performance",
+    "RATD: Recall After Time Delay",
+    "LATD: Loss After Time Delay",
+    "W-F: Corrected Recognition Performance"
+  ),
+  title = "Model 2 Linear Regression for VLMT test Outcomes"
+)
+```
+
+```{r RQ3_Model2_LRM_Wechsler, results='asis'}
+tab_model(
+  W_VCI_lm_add,
+  W_WMI_lm_add,
+  W_PS_lm_add,
+  W_GIQ_lm_add,
+  show.std = TRUE,
+  show.ci = FALSE,
+  dv.labels = c(
+    "VCI: Verbal Comprehension Index",
+    "WMI: Working Memory Index",
+    "PSI: Processing Speed Index",
+    "GIQ: General IQ Index"
+  ),
+  title = "Model 2 Linear Regression for Wechsler Test Outcomes"
+)
+```
+
+### Additional regression models with the added THC biomarker cofounder
+
+##building linear regression models for Type 1 and Type 2 models
+```{r RQ3_linear_RM_Check_THC}
+#model1
+VLMT_TLP_lm_THC <- lm(z_SDg1_5 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu)
+VLMT_RATD_lm_THC <- lm(z_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu)
+VLMT_LATD_lm_THC <- lm(z_Dg5_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu)
+VLMT_WF_lm_THC <- lm(z_W_F ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu)
+W_VCI_lm_THC <- lm(W_VCI ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu)
+W_WMI_lm_THC <- lm(W_WMI ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu)
+W_PS_lm_THC <- lm(W_PS ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu)
+W_GIQ_lm_THC <- lm(W_GIQ ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu)
+#model2
+VLMT_TLP_lm_add_THC <- lm(z_SDg1_5 ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu)
+VLMT_RATD_lm_add_THC <- lm(z_Dg7 ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu)
+VLMT_LATD_lm_add_THC <- lm(z_Dg5_Dg7 ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu)
+VLMT_WF_lm_add_THC <- lm(z_W_F ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu)
+W_VCI_lm_add_THC <- lm(W_VCI ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu)
+W_WMI_lm_add_THC <- lm(W_WMI ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu)
+W_PS_lm_add_THC <- lm(W_PS ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu)
+W_GIQ_lm_add_THC <- lm(W_GIQ ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu)
+```
+
+##check the possibility to apply LRM or to change with robust models
+```{r RQ_3_LRM_assumption_check_THC}
+#make a list of all models
+lm_models_THC <- list(
+  VLMT_TLP_model1_lm_THC = lm(z_SDg1_5 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu),
+  VLMT_RATD_model1_lm_THC = lm(z_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu),
+  VLMT_LATD_model1_lm_THC = lm(z_Dg5_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu),
+  VLMT_WF_model1_lm_THC = lm(z_W_F ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu),
+  
+  W_VCI_model1_lm_THC = lm(W_VCI ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu),
+  W_WMI_model1_lm_THC = lm(W_WMI ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y+ THC_urine, data=memdat_ccu),
+  W_PS_model1_lm_THC = lm(W_PS ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu),
+  W_GIQ_model1_lm_THC = lm(W_GIQ ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data=memdat_ccu),
+  
+  VLMT_TLP_model2_lm_THC = lm(z_SDg1_5 ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu),
+  VLMT_RATD_model2_lm_THC = lm(z_Dg7 ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu),
+  VLMT_LATD_model2_lm_THC = lm(z_Dg5_Dg7 ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu),
+  VLMT_WF_model2_lm_THC = lm(z_W_F ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu),
+  
+  W_VCI_model2_lm_THC = lm(W_VCI ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu),
+  W_WMI_model2_lm_THC = lm(W_WMI ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu),
+  W_PS_model2_lm_THC = lm(W_PS ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu),
+  W_GIQ_model2_lm_THC = lm(W_GIQ ~ z_C_EX_M + z_C_EX_Y + z_C_DU + THC_urine, data=memdat_ccu)
+)
+
+# Function to check linear regression assumptions: linearity & homoscedasticity by plots, normality of residuals by qq plot, Breusch-Pagan test = test for Homoscedasticity
+
+lm_check_assumptions <- function(model, model_name) {
+  cat("\n\n---", model_name, "---\n")
+  
+  # Linearity & Homoscedasticity
+  plot(fitted(model), residuals(model), main=paste("Residuals vs Fitted:", model_name),
+       xlab="Fitted values", ylab="Residuals")
+  abline(h=0, col="red")
+
+  # Normality of residuals
+  qqnorm(residuals(model), main=paste("Q-Q Plot:", model_name))
+  qqline(residuals(model), col="red")
+  
+  cat("Shapiro-Wilk test:\n")
+  print(shapiro.test(residuals(model)))
+  
+  # Homoscedasticity (Breusch-Pagan test)
+  cat("Breusch-Pagan test:\n")
+  print(bptest(model))
+  
+  # Multicollinearity (VIF)
+  if (length(coef(model)) > 2) {
+    cat("VIF:\n")
+    print(vif(model))
+  } else {
+    cat("VIF: Skipped (only one predictor)\n")
+  }
+}
+# Run diagnostics for each model
+par(mfrow=c(2,2))  # for plotting
+for (name in names(lm_models)) {
+  lm_check_assumptions(lm_models[[name]], name)
+}
+
+# Function for Shapiro + BP tests with formatting
+extract_model_diagnostics_starred <- function(model, name) {
+  shapiro_p <- shapiro.test(residuals(model))$p.value
+  bp_p <- bptest(model)$p.value
+  
+  tibble(
+    Model = name,
+    `Shapiro-Wilk p` = ifelse(shapiro_p > 0.05, 
+                              paste0(format(round(shapiro_p, 3), nsmall = 3), " *"), 
+                              format(round(shapiro_p, 3), nsmall = 3)),
+    `BP test p` = format(round(bp_p, 3), nsmall = 3),
+    `Recommended model` = ifelse(shapiro_p > 0.05 & bp_p > 0.05, "Linear", "Robust")
+  )
+}
+
+label_map <- c(
+  VLMT_TLP_model1_lm_THC  = "A1-A5 Model 1",
+  VLMT_RATD_model1_lm_THC = "A7 Model 1",
+  VLMT_LATD_model1_lm_THC = "A5-A7 Model 1",
+  VLMT_WF_model1_lm_THC   = "A8-F Model 1",
+  W_VCI_model1_lm_THC     = "W_VCI Model 1",
+  W_WMI_model1_lm_THC     = "W_WMI Model 1",
+  W_PS_model1_lm_THC      = "W_PS Model 1",
+  W_GIQ_model1_lm_THC     = "W_GIQ Model 1",
+  VLMT_TLP_model2_lm_THC  = "A1-A5 Model 2",
+  VLMT_RATD_model2_lm_THC = "A7 Model 2",
+  VLMT_LATD_model2_lm_THC = "A5-A7 Model 2",
+  VLMT_WF_model2_lm_THC   = "A8-F Model 2",
+  W_VCI_model2_lm_THC     = "W_VCI Model 2",
+  W_WMI_model2_lm_THC     = "W_WMI Model 2",
+  W_PS_model2_lm_THC      = "W_PS Model 2",
+  W_GIQ_model2_lm_THC     = "W_GIQ Model 2"
+)
+
+diagnostic_table <- purrr::map2_dfr(lm_models, names(lm_models), extract_model_diagnostics_starred) %>%
+  dplyr::mutate(Model = dplyr::recode(Model, !!!label_map))
+
+
+# Render the table
+diagnostic_table %>%
+  kbl(caption = "Linear Regression Diagnostics Summary (added THC Urine test) (n = 31)",
+      align = "lccc",
+      escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE,
+                position = "center")
+
+ft_diag <- flextable::flextable(diagnostic_table) %>%
+  flextable::set_header_labels(
+    Model               = "Model",
+    `Shapiro-Wilk p`    = "Shapiro–Wilk p",
+    `BP test p`         = "Breusch–Pagan p",
+    `Recommended model` = "Recommended model"
+  ) %>%
+  flextable::font(fontname = "Times New Roman", part = "all") %>%
+  flextable::fontsize(size = 12, part = "all") %>%
+  flextable::autofit() %>%
+  flextable::fit_to_width(max_width = 6.5)
+
+print(
+  officer::read_docx() %>%
+    flextable::body_add_flextable(ft_diag),
+  target = paste(path, "/Shvedovskii_Regression_Assumption_Check_add_THC_urine.docx", sep=""))
+
+
+```
+After checking the regressions one model was selected for the application of robust regression:
+
+Model type 1
+* VLMT A8-F
+
+```{r RQ3_RobustRM_add_urine_THC}
+VLMT_WF_model1_robust_add_THC <- rlm(z_W_F ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data = memdat_ccu)
+
+# Function to tidy coeftest output
+tidy_rlm <- function(model) {
+  coefs <- coeftest(model, vcov = vcovHC(model, type = "HC1"))
+  data.frame(
+    term = rownames(coefs),
+    estimate = coefs[, 1],
+    std.error = coefs[, 2],
+    statistic = coefs[, 3],
+    p.value = coefs[, 4],
+    row.names = NULL
+  )
+}
+
+term_labels <- c(
+  "(Intercept)" = "Intercept",
+  "z_C_FUA"     = "Age of first use (z)",
+  "z_C_CD_M"    = "Days of Consume (last month, z)",
+  "z_C_APD_M"   = "Amount per day (g) (last month, z)",
+  "z_C_CD_Y"    = "Days of Consume (avg. month in last year, z)",
+  "z_C_APD_Y"   = "Amount per day (g) (avg. month in last year, z)",
+  "THC_Urine"   = "Cannabis Urine test (Drug-Screen Multi 10D Kassettentest"
+)
+
+table_VLMT_WF_model1_robust_add_THC <- tidy_rlm(VLMT_WF_model1_robust_add_THC) %>% 
+  dplyr::mutate(term = dplyr::recode(term, !!!term_labels)) %>%  
+  dplyr::rename(                                       
+    Predictor = term,
+    Beta      = estimate,
+    SE        = std.error,
+    t         = statistic,
+    p         = p.value
+  ) %>%
+  dplyr::mutate(
+    dplyr::across(c(Beta, SE, t), ~ round(., 2)),
+    p = dplyr::case_when(
+      is.na(p)        ~ "—",
+      p < .001        ~ "<0.001",
+      TRUE            ~ sprintf("%.3f", p)
+    )
+  )
+kable(table_VLMT_WF_model1_robust_add_THC, digits = 2, caption = "Model 1 Robust Regression for Corrected Recognition Performance (VLMT) with added THC urine test")
+
+# build flextables
+ft_wf_add_THC <- flextable::flextable(table_VLMT_WF_model1_robust_add_THC) %>%
+  flextable::set_header_labels(
+    Predictor = "Predictor",
+    Beta      = "β",
+    SE        = "SE",
+    t         = "t",
+    p         = "p"
+  ) %>%
+  flextable::align(j = c("Beta","SE","t","p"), align = "center", part = "body") %>%
+  flextable::bold(part = "header") %>%
+  flextable::font(fontname = "Times New Roman", part = "all") %>%
+  flextable::fontsize(size = 12, part = "all") %>%
+  flextable::autofit()
+
+# export to Word
+doc <- officer::read_docx()
+doc <- flextable::body_add_flextable(doc, ft_wf_add_THC)
+
+print(
+  doc,
+  target = paste(path, "/Shvedovskii_VLMT_Robust_Models_add_THC.docx", sep=""))
+nobs(VLMT_WF_model1_robust_add_THC)
+
+```
+
+Linear Regression were applied to these parameters for Model 1 and 2
+
+Model 1:
+* VLMT A1 to A5
+* VLMT A7
+* VLMT A5-A7 
+
+* W_VCI
+* W_PS
+* W_WMI
+* W_FSIQ
+
+Model 2:
+* VLMT A1 to A5
+* VLMT A7
+* VLMT A5-A7
+* VLMT A8-AF
+
+* W_VCI
+* W_PS
+* W_WMI
+* W_FSIQ
+
+```{r RQ3_Model_1_LRM_VLMT_THC, results='asis'}
+VLMT_TLP_model1_lm_add_THC <- lm(z_SDg1_5 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data = memdat_ccu)
+VLMT_RATD_model1_lm_add_THC <- lm(z_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data = memdat_ccu)
+VLMT_LATD_model1_lm_add_THC <- lm(z_Dg5_Dg7 ~ z_C_FUA + z_C_CD_M + z_C_APD_M + z_C_CD_Y + z_C_APD_Y + THC_urine, data = memdat_ccu)
+
+tab_model(
+  VLMT_TLP_model1_lm_add_THC,
+  VLMT_RATD_model1_lm_add_THC,
+  VLMT_LATD_model1_lm_add_THC,
+  show.std = TRUE,
+  show.ci = FALSE,
+  dv.labels = c(
+    "Total Learning Performance (A1 to A5)",
+    "Free Recall After Time Delay (A7)",
+    "Loss After Time Delay (A5-A7) (VLMT)"
+  ),
+  title = "Model 1 Linear Regression Results for Total Learning Performange (A1 to A5), Free Recall After Time Delay (A7) and Loss After Time Delay (A5-A7) (VLMT) with added THC urine test"
+)
+
+```
+
+```{r RQ3_Model_1_LRM_Wechsler_THC, results='asis'}
+
+W_VCI_model1_lm_THC <- lm_models_THC$W_VCI_model1_lm_THC
+W_WMI_model1_lm_THC <- lm_models_THC$W_WMI_model1_lm_THC
+W_PS_model1_lm_THC  <- lm_models_THC$W_PS_model1_lm_THC
+W_GIQ_model1_lm_THC <- lm_models_THC$W_GIQ_model1_lm_THC
+
+tab_model(
+  W_VCI_model1_lm_THC,
+  W_WMI_model1_lm_THC,
+  W_PS_model1_lm_THC,
+  W_GIQ_model1_lm_THC,
+  show.std = TRUE,
+  show.ci = FALSE,
+  dv.labels = c(
+    "Verbal Comprehension Index (W_VCI)",
+    "Working Memory Index (W_WMI)",
+    "Processing Speed Index (W_PS)",
+    "Full-Scale IQ (W_GIQ)"
+  ),
+  title = "Model 1 Linear Regression for Wechsler Test Outcomes with added THC urine test"
+)
+```
+
+```{r RQ3_Model2_LRM_VLMT_THC, results='asis'}
+tab_model(
+  VLMT_TLP_lm_add_THC,
+  VLMT_RATD_lm_add_THC,
+  VLMT_LATD_lm_add_THC,
+  VLMT_WF_lm_add_THC,
+  show.std = TRUE,
+  show.ci = FALSE,
+  dv.labels = c(
+    "TLP: Total Learning Performance",
+    "RATD: Recall After Time Delay",
+    "LATD: Loss After Time Delay",
+    "W-F: Corrected Recognition Performance"
+  ),
+  title = "Model 2 Linear Regression for VLMT test Outcomes with added THC urine test"
+)
+```
+
+```{r RQ3_Model2_LRM_Wechsler_THC, results='asis'}
+W_VCI_model2_lm_THC <- lm_models_THC$W_VCI_model2_lm_THC
+W_WMI_model2_lm_THC <- lm_models_THC$W_WMI_model2_lm_THC
+W_PS_model2_lm_THC  <- lm_models_THC$W_PS_model2_lm_THC
+W_GIQ_model2_lm_THC <- lm_models_THC$W_GIQ_model2_lm_THC
+
+tab_model(
+  W_VCI_model2_lm_THC,
+  W_WMI_model2_lm_THC,
+  W_PS_model2_lm_THC,
+  W_GIQ_model2_lm_THC,
+  show.std = TRUE,
+  show.ci = FALSE,
+  dv.labels = c(
+    "VCI: Verbal Comprehension Index",
+    "WMI: Working Memory Index",
+    "PSI: Processing Speed Index",
+    "GIQ: General IQ Index"
+  ),
+  title = "Model 2 Linear Regression for Wechsler Test Outcomes with added THC urine test"
+)
+```
+
+```{r RQ3_Model_1_LRM_Wechsler_urine_THC, results='asis'}
+tab_model(
+  W_VCI_lm,
+  W_WMI_lm,
+  W_PS_lm,
+  W_GIQ_lm,
+  show.std = TRUE,
+  show.ci = FALSE,
+  dv.labels = c(
+    "Verbal Comprehension Index (W_VCI)",
+    "Working Memory Index (W_WMI)",
+    "Processing Speed Index (W_PS)",
+    "General IQ Index (W_GIQ)"
+  ),
+  title = "Model 1 Linear Regression for Wechsler Test Outcomes"
+)
+```
+
+```{r session_info}
+sessionInfo()
