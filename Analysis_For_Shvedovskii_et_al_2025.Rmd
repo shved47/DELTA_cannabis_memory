@@ -1,7 +1,6 @@
 ---
 title: "DELTA memory data analysis"
-author: Evgenii Shvedovskii, research fellow, RTG Neuromodulation | KJPP, University
-  of Oldenburg
+author:  
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -2692,3 +2691,4 @@ tab_model(
 
 ```{r session_info}
 sessionInfo()
+
